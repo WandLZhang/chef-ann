@@ -1,0 +1,53 @@
+{
+  "elementary": {
+    "meat_ma_oz_min": 10,
+    "grain_oz_eq_min": 8,
+    "veg_cups_min": 3.75,
+    "veg_subgroups": {
+        "dark_green": 0.5,
+        "red_orange": 0.75,
+        "beans_peas": 0.5,
+        "starchy": 0.5,
+        "other": 0.5
+    },
+    "fruit_cups_min": 2.5,
+    "milk_cups_min": 5,
+    "sodium_mg_max": 1230,
+    "calories_min": 550,
+    "calories_max": 650
+  },
+  "middle": {
+    "meat_ma_oz_min": 10,
+    "grain_oz_eq_min": 8,
+    "veg_cups_min": 3.75,
+    "veg_subgroups": {
+        "dark_green": 0.5,
+        "red_orange": 0.75,
+        "beans_peas": 0.5,
+        "starchy": 0.5,
+        "other": 0.5
+    },
+    "fruit_cups_min": 2.5,
+    "milk_cups_min": 5,
+    "sodium_mg_max": 1360,
+    "calories_min": 600,
+    "calories_max": 700
+  },
+  "high": {
+    "meat_ma_oz_min": 12,
+    "grain_oz_eq_min": 10,
+    "veg_cups_min": 5,
+    "veg_subgroups": {
+        "dark_green": 0.5,
+        "red_orange": 1.25,
+        "beans_peas": 0.5,
+        "starchy": 0.5,
+        "other": 0.75
+    },
+    "fruit_cups_min": 5,
+    "milk_cups_min": 5,
+    "sodium_mg_max": 1420,
+    "calories_min": 750,
+    "calories_max": 850
+  }
+}

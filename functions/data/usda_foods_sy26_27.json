@@ -1,0 +1,150 @@
+{
+  "proteins": {
+    "beef": [
+      {
+        "wbscm_id": "100158",
+        "description": "Beef, Fine Ground, 100%, 85/15, Raw, Frozen",
+        "pack_size": "40 lb case",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 3.25,
+        "yield_factor": 0.75
+      },
+      {
+        "wbscm_id": "110349",
+        "description": "Beef, Patties, 100%, 85/15, Raw, 2.0 Meat/Meat Alternate, Frozen",
+        "pack_size": "40 lb case",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 3.40,
+        "yield_factor": 0.85
+      },
+      {
+        "wbscm_id": "100134",
+        "description": "Beef, Crumbles w/Soy Protein Product, Cooked, Frozen",
+        "pack_size": "4/10 lb bag",
+        "caf_recommended": false,
+        "processing_level": "processed",
+        "est_cost_per_lb": 2.85,
+        "yield_factor": 1.0
+      },
+      {
+        "wbscm_id": "110322",
+        "description": "Beef, Patties w/Soy Protein Product, Cooked, 2.0 Meat/Meat Alternate, Frozen",
+        "pack_size": "40 lb case",
+        "caf_recommended": false,
+        "processing_level": "processed",
+        "est_cost_per_lb": 2.90,
+        "yield_factor": 1.0
+      }
+    ],
+    "poultry": [
+      {
+        "wbscm_id": "111361",
+        "description": "Chicken, Cut-up, Raw, Frozen",
+        "pack_size": "4/10 lb bag",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 1.85,
+        "yield_factor": 0.65
+      },
+      {
+        "wbscm_id": "100125",
+        "description": "Turkey, Roast, Raw, Frozen",
+        "pack_size": "4/8-12 lb roasts",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 2.10,
+        "yield_factor": 0.75
+      },
+      {
+        "wbscm_id": "100101",
+        "description": "Chicken, Diced, Cooked, Frozen",
+        "pack_size": "8/5 lb bag",
+        "caf_recommended": true,
+        "processing_level": "minimally_processed",
+        "est_cost_per_lb": 2.45,
+        "yield_factor": 1.0
+      },
+      {
+        "wbscm_id": "111881",
+        "description": "Chicken, Pulled, Cooked, Frozen",
+        "pack_size": "6/5 lb bag",
+        "caf_recommended": true,
+        "processing_level": "minimally_processed",
+        "est_cost_per_lb": 2.55,
+        "yield_factor": 1.0
+      }
+    ]
+  },
+  "vegetables": {
+    "dark_green": [
+      {
+        "wbscm_id": "110473",
+        "description": "Broccoli Florets, No Salt Added, Frozen",
+        "pack_size": "30 lb case",
+        "est_cost_per_case": 45.00
+      },
+      {
+        "wbscm_id": "110425",
+        "description": "Spinach, Chopped, No Salt Added, Frozen (IQF)",
+        "pack_size": "20 lb case",
+        "est_cost_per_case": 32.00
+      }
+    ],
+    "red_orange": [
+      {
+        "wbscm_id": "110480",
+        "description": "Carrots, Diced, No Salt Added, Frozen",
+        "pack_size": "30 lb case",
+        "est_cost_per_case": 35.00
+      },
+      {
+        "wbscm_id": "110562",
+        "description": "Sweet Potatoes, Cubes, No Salt Added, Frozen",
+        "pack_size": "6/5 lb bag",
+        "est_cost_per_case": 40.00
+      }
+    ],
+    "starchy": [
+        {
+            "wbscm_id": "100348",
+            "description": "Corn, Whole Kernel, No Salt Added, Frozen",
+            "pack_size": "30 lb case",
+            "est_cost_per_case": 30.00
+        }
+    ],
+    "legumes": [
+        {
+            "wbscm_id": "100359",
+            "description": "Beans, Black, Low-sodium, Canned",
+            "pack_size": "6/#10 can",
+            "est_cost_per_case": 25.00
+        }
+    ]
+  },
+  "fruits": {
+    "fresh": [
+        {
+            "wbscm_id": "100517",
+            "description": "Apples, Empire, Fresh",
+            "pack_size": "40 lb case",
+            "est_cost_per_case": 30.00
+        }
+    ],
+    "frozen": [
+        {
+            "wbscm_id": "100243",
+            "description": "Blueberries, Wild, Unsweetened, Frozen",
+            "pack_size": "30 lb case",
+            "est_cost_per_case": 70.00
+        }
+    ]
+  },
+  "grains": {
+    "wbscm_id": "105012",
+    "description": "Pasta, Macaroni, Whole Grain-Rich Blend",
+    "pack_size": "2/10 lb bag",
+    "est_cost_per_case": 20.00
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "_source": "USDA Food Buying Guide for Child Nutrition Programs",
+  "_note": "Official yield factors - replace with actual FBG data when available",
+  "_url": "https://foodbuyingguide.fns.usda.gov/",
+  
+  "beef": {
+    "ground_raw_85_15": {
+      "yield_factor": 0.75,
+      "purchase_unit": "lb raw",
+      "serving_unit": "oz cooked",
+      "servings_per_purchase_unit": 6.0,
+      "notes": "85/15 ground beef, browned and drained. Source: USDA FBG online tool (current)."
+    },
+    "ground_raw_90_10": {
+      "yield_factor": 0.77,
+      "purchase_unit": "lb raw",
+      "serving_unit": "oz cooked",
+      "servings_per_purchase_unit": 6.16
+    },
+    "patties_raw": {
+      "yield_factor": 0.82,
+      "purchase_unit": "lb raw",
+      "serving_unit": "oz cooked",
+      "servings_per_purchase_unit": 6.56,
+      "notes": "Pre-formed patties shrink less than loose ground"
+    },
+    "crumbles_cooked": {
+      "yield_factor": 1.0,
+      "purchase_unit": "lb cooked",
+      "serving_unit": "oz cooked",
+      "servings_per_purchase_unit": 8.0
+    }
+  },
+  
+  "poultry": {
+    "chicken_cut_up_raw": {
+      "yield_factor": 0.53,
+      "purchase_unit": "lb raw",
+      "serving_unit": "oz cooked",
+      "servings_per_purchase_unit": 4.24,
+      "notes": "With bone and skin"
+    },
+    "chicken_diced_cooked": {
+      "yield_factor": 1.0,
+      "purchase_unit": "lb cooked",
+      "serving_unit": "oz cooked",
+      "servings_per_purchase_unit": 8.0
+    },
+    "chicken_pulled_cooked": {
+      "yield_factor": 1.0,
+      "purchase_unit": "lb cooked",
+      "serving_unit": "oz cooked",
+      "servings_per_purchase_unit": 8.0
+    },
+    "turkey_roast_raw": {
+      "yield_factor": 0.70,
+      "purchase_unit": "lb raw",
+      "serving_unit": "oz cooked",
+      "servings_per_purchase_unit": 5.6
+    },
+    "turkey_deli_sliced": {
+      "yield_factor": 1.0,
+      "purchase_unit": "lb",
+      "serving_unit": "oz",
+      "servings_per_purchase_unit": 8.0
+    }
+  },
+  
+  "pork": {
+    "ham_cooked": {
+      "yield_factor": 1.0,
+      "purchase_unit": "lb cooked",
+      "serving_unit": "oz",
+      "servings_per_purchase_unit": 8.0
+    },
+    "leg_roast_raw": {
+      "yield_factor": 0.65,
+      "purchase_unit": "lb raw",
+      "serving_unit": "oz cooked",
+      "servings_per_purchase_unit": 5.2
+    },
+    "pulled_cooked": {
+      "yield_factor": 1.0,
+      "purchase_unit": "lb cooked",
+      "serving_unit": "oz",
+      "servings_per_purchase_unit": 8.0
+    }
+  },
+  
+  "fish": {
+    "pollock_breaded_sticks": {
+      "yield_factor": 1.0,
+      "purchase_unit": "each",
+      "serving_unit": "each",
+      "servings_per_purchase_unit": 1.0,
+      "notes": "Pre-portioned"
+    },
+    "catfish_breaded_strips": {
+      "yield_factor": 1.0,
+      "purchase_unit": "each",
+      "serving_unit": "each",
+      "servings_per_purchase_unit": 1.0
+    }
+  },
+  
+  "vegetables": {
+    "broccoli_frozen": {
+      "yield_factor": 0.91,
+      "purchase_unit": "lb frozen",
+      "serving_unit": "cup cooked",
+      "servings_per_purchase_unit": 2.53
+    },
+    "carrots_frozen_diced": {
+      "yield_factor": 0.94,
+      "purchase_unit": "lb frozen",
+      "serving_unit": "cup cooked",
+      "servings_per_purchase_unit": 2.94
+    },
+    "carrots_canned_sliced": {
+      "yield_factor": 1.0,
+      "purchase_unit": "lb drained",
+      "serving_unit": "cup",
+      "servings_per_purchase_unit": 2.0
+    },
+    "corn_frozen": {
+      "yield_factor": 0.95,
+      "purchase_unit": "lb frozen",
+      "serving_unit": "cup cooked",
+      "servings_per_purchase_unit": 2.67
+    },
+    "green_beans_frozen": {
+      "yield_factor": 0.93,
+      "purchase_unit": "lb frozen",
+      "serving_unit": "cup cooked",
+      "servings_per_purchase_unit": 2.58
+    },
+    "sweet_potatoes_frozen": {
+      "yield_factor": 0.95,
+      "purchase_unit": "lb frozen",
+      "serving_unit": "cup cooked",
+      "servings_per_purchase_unit": 2.11
+    }
+  },
+  
+  "fruits": {
+    "apples_fresh": {
+      "yield_factor": 0.86,
+      "purchase_unit": "lb",
+      "serving_unit": "each medium",
+      "servings_per_purchase_unit": 2.5,
+      "notes": "With core/peel waste"
+    },
+    "blueberries_frozen": {
+      "yield_factor": 1.0,
+      "purchase_unit": "lb frozen",
+      "serving_unit": "cup",
+      "servings_per_purchase_unit": 2.25
+    },
+    "peaches_canned": {
+      "yield_factor": 1.0,
+      "purchase_unit": "lb drained",
+      "serving_unit": "cup",
+      "servings_per_purchase_unit": 2.0
+    }
+  }
+}
