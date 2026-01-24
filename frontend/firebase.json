@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "chef-ann-commodity-planner",
     "public": "out",
     "ignore": [
       "firebase.json",

@@ -135,7 +135,7 @@ const generateWeekMenuData = (weekMenu: MenuDay[]) => {
 
 export default function MenuPage() {
   const router = useRouter();
-  const [allocations, setAllocations] = useState<Record<string, CategoryAllocation>>({});
+  const [_allocations, setAllocations] = useState<Record<string, CategoryAllocation>>({});
   const [menu, setMenu] = useState<MenuDay[][]>([]);
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [gradeGroup, setGradeGroup] = useState('elementary');

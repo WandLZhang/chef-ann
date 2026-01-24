@@ -13,7 +13,6 @@ import {
   Typography,
   Card,
   Button,
-  LinearProgress,
   Chip,
   IconButton,
 } from '@mui/material';

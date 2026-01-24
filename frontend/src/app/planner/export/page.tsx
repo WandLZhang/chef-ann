@@ -310,7 +310,7 @@ export default function ExportPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {allItems.map(({ category, item }, idx) => {
+                    {allItems.map(({ item }, idx) => {
                       const catalog = wbscmCatalog[item.wbscmId];
                       return (
                         <TableRow key={idx}>

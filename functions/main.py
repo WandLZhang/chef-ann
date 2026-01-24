@@ -116,14 +116,28 @@ def stream_gemini(prompt: str, enable_code_execution: bool = True):
 
 
 def handle_commodities(category=None):
-    """Handle /api/commodities endpoints."""
+    """Handle /api/commodities endpoints.
+    
+    Data structure:
+    - proteins: {beef: [...], poultry: [...], pork: [...], fish: [...]}
+    - vegetables: [...]
+    - fruits: [...]
+    - grains: [...]
+    - dairy: [...]
+    - legumes: [...]
+    """
     if category:
-        if category == "proteins":
-            return jsonify(COMMODITIES.get("proteins", {})), 200, cors_headers()
-        elif category in COMMODITIES.get("proteins", {}):
+        # Check if it's a protein subcategory (beef, poultry, pork, fish)
+        if category in COMMODITIES.get("proteins", {}):
             return jsonify(COMMODITIES["proteins"].get(category, [])), 200, cors_headers()
+        # Check if it's a top-level category (vegetables, fruits, grains, dairy, legumes)
         elif category in COMMODITIES:
-            return jsonify(COMMODITIES.get(category, {})), 200, cors_headers()
+            data = COMMODITIES.get(category, [])
+            # If it's proteins, return the whole nested structure
+            if isinstance(data, dict):
+                return jsonify(data), 200, cors_headers()
+            # Otherwise return the array
+            return jsonify(data), 200, cors_headers()
         else:
             return jsonify({"error": f"Category '{category}' not found"}), 404, cors_headers()
     return jsonify(COMMODITIES), 200, cors_headers()

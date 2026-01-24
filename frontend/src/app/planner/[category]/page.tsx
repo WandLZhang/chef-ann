@@ -23,7 +23,6 @@ import {
   IconButton,
   TextField,
   Chip,
-  LinearProgress,
   Drawer,
   Divider,
   CircularProgress,
@@ -51,10 +50,8 @@ interface Commodity {
   yield_factor: number;
 }
 
-interface AllocationItem {
-  commodity: Commodity;
-  quantity_lbs: number;
-}
+// AllocationItem interface kept for future use
+// interface AllocationItem { commodity: Commodity; quantity_lbs: number; }
 
 interface CalculationResult {
   wbscm_id: string;
@@ -98,7 +95,7 @@ export default function CategoryPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [codeBlocks, setCodeBlocks] = useState<string[]>([]);
   const [codeResults, setCodeResults] = useState<string[]>([]);
-  const [geminiText, setGeminiText] = useState('');
+  const [_geminiText, setGeminiText] = useState('');
 
   // Fetch commodities for this category
   useEffect(() => {
@@ -114,6 +111,7 @@ export default function CategoryPage() {
         }
       } catch (error) {
         console.error('Failed to fetch commodities:', error);
+        console.log('Using mock data for category:', category);
         // Use category-specific mock data for demo
         const mockData: Record<string, Commodity[]> = {
           beef: [

@@ -56,6 +56,9 @@ export async function getCommodities(category?: string): Promise<Commodity[]> {
     ? `${API_BASE}/api/commodities/${category}`
     : `${API_BASE}/api/commodities`;
   const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch commodities: ${res.status}`);
+  }
   return res.json();
 }
 
