@@ -3,13 +3,48 @@
   "school_year": "SY2025-26",
   "total_entitlement": 485000,
   "dod_fresh_allocation_pct": 0.20,
-  "total_annual_meals": 3600000,
-  "adp": {
-    "pre_k": 500,
-    "elementary": 12000,
-    "middle": 4500,
-    "high": 3000
+  
+  "_calculation_inputs": {
+    "enrollment_by_grade": {
+      "pre_k": 625,
+      "elementary": 15000,
+      "middle": 5625,
+      "high": 3750
+    },
+    "serving_days": 180,
+    "demographics": {
+      "free_rate": 0.85,
+      "reduced_rate": 0.05,
+      "paid_rate": 0.10
+    },
+    "participation_rates": {
+      "free": 0.80,
+      "reduced": 0.70,
+      "paid": 0.40,
+      "_note": "Industry standard participation rates by eligibility category"
+    }
   },
+
+  "_calculation_formula": {
+    "weighted_participation": "(free_rate × free_participation) + (reduced_rate × reduced_participation) + (paid_rate × paid_participation)",
+    "weighted_participation_result": 0.755,
+    "adp_formula": "enrollment × weighted_participation",
+    "annual_meals_formula": "total_adp × serving_days"
+  },
+
+  "adp": {
+    "pre_k": 472,
+    "elementary": 11325,
+    "middle": 4247,
+    "high": 2831,
+    "_note": "Calculated: enrollment × 0.755 weighted participation"
+  },
+  
+  "total_enrollment": 25000,
+  "total_adp": 18875,
+  "total_annual_meals": 3397500,
+  "_annual_meals_calculation": "18,875 ADP × 180 serving days = 3,397,500 annual meals",
+
   "demographics": {
     "free_rate": 0.85,
     "reduced_rate": 0.05,

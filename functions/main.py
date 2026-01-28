@@ -173,7 +173,7 @@ def handle_stream_allocate(data):
     commodity_type = data.get('commodity_type', 'beef')
     items = data.get('items', [])
     oz_per_serving = data.get('oz_per_serving', 2.0)
-    annual_meals = data.get('annual_meals', 3600000)
+    annual_meals = data.get('annual_meals', 3397500)
     
     # Find commodity data for selected items - search ALL categories
     all_commodities = extract_all_commodities(COMMODITIES)
@@ -273,7 +273,7 @@ Return JSON:
 def handle_stream_budget(data):
     """Handle streaming budget analysis."""
     total_spend = data.get('total_commodity_spend', 185000)
-    annual_meals = data.get('total_annual_meals', 3600000)
+    annual_meals = data.get('total_annual_meals', 3397500)
     other_food = data.get('other_food_cost_per_meal', 0.65)
     labor = data.get('labor_overhead_per_meal', 1.50)
     
@@ -316,7 +316,7 @@ def handle_stream_entitlement(data):
     """Handle streaming entitlement tracking."""
     allocations = data.get('allocations', {})
     total_entitlement = DISTRICT_PROFILE.get('total_entitlement', 485000)
-    annual_meals = DISTRICT_PROFILE.get('total_annual_meals', 3600000)
+    annual_meals = DISTRICT_PROFILE.get('total_annual_meals', 3397500)
     
     prompt = f"""
 Audit USDA Entitlement spending.
