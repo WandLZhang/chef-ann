@@ -2,8 +2,9 @@
  * @file planner/menu/page.tsx
  * @brief Menu Cycle & Compliance page
  * 
- * @details Shows a 5-week menu calendar and connects to /api/stream/compliance
- * for USDA meal pattern validation.
+ * @details Shows a 5-week menu calendar with integrated recipe details.
+ * Connects to /api/stream/compliance for USDA meal pattern validation.
+ * Features tooltips for quick recipe preview and dialog for full details.
  */
 
 'use client';
@@ -22,6 +23,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  IconButton,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
@@ -32,7 +34,11 @@ import WarningIcon from '@mui/icons-material/Warning';
 import ErrorIcon from '@mui/icons-material/Error';
 import CodeIcon from '@mui/icons-material/Code';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import PlannerStepper from '@/components/PlannerStepper';
+import RecipeTooltip from '@/components/RecipeTooltip';
+import RecipeDetailDialog from '@/components/RecipeDetailDialog';
+import { recipes, Recipe, getRecipesByProtein } from '@/data/recipes';
 import { streamCompliance, type StreamCallbacks } from '@/lib/api';
 
 interface CategoryAllocation {
@@ -43,6 +49,8 @@ interface CategoryAllocation {
 
 interface MenuDay {
   entree: string;
+  recipeId?: string;
+  servingSize?: string;
   protein: string;
   vegetable: string;
   fruit: string;
@@ -62,6 +70,42 @@ interface ComplianceResult {
   suggestions: string[];
 }
 
+// Recipe mappings by protein type - using IDs that match recipes.ts exactly
+const recipesByProtein: Record<string, { id: string; name: string; serving: string; grain: string }[]> = {
+  Beef: [
+    { id: 'OU516', name: 'Beef Birria Tacos', serving: '3 Tacos', grain: 'Corn Tortilla' },
+    { id: 'FS004', name: 'Beef and Broccoli K-8', serving: '1 Bowl (8oz)', grain: 'Brown Rice' },
+    { id: 'OU004', name: 'Beef Bulgogi', serving: '4oz + veggies', grain: 'Brown Rice' },
+    { id: 'MB200', name: 'Beef Chili', serving: '1 Cup (8oz)', grain: 'WG Roll' },
+    { id: 'MV065', name: 'Baked Potato with Taco Meat', serving: '1 Each', grain: 'Baked Potato' },
+    { id: 'FS003', name: 'Baked Beef and Sausage Penne', serving: '3/4 Cup (8oz)', grain: 'WG Pasta' },
+  ],
+  Chicken: [
+    { id: 'FS045', name: 'Crispy Chicken Sandwich', serving: '1 Sandwich', grain: 'WG Bun' },
+    { id: 'MP003', name: 'Chicken Enchiladas', serving: '2 Enchiladas', grain: 'WG Tortilla' },
+    { id: 'FS010', name: 'Butternut Squash and Chicken Curry', serving: '1 Cup (8oz)', grain: 'Brown Rice' },
+    { id: 'MP070', name: 'Chicken Burrito', serving: '1 Burrito', grain: 'WG Tortilla' },
+    { id: 'R8998', name: 'Chicken Pozole', serving: '1 Cup (8oz)', grain: 'Tortilla Chips' },
+    { id: 'OU002', name: 'Banh Mi Sandwich', serving: '1 Sandwich', grain: 'WG Baguette' },
+    { id: 'MP320', name: 'Oven Fried Chicken Drumstick', serving: '1 Drumstick', grain: 'WG Roll' },
+  ],
+  Pork: [
+    { id: 'MB450', name: 'Cuban Sandwich', serving: '1 Sandwich', grain: 'WG Roll' },
+    { id: 'FS041', name: 'Pork Green Chili Burrito', serving: '1 Burrito', grain: 'WG Tortilla' },
+  ],
+  Fish: [
+    { id: 'OU521', name: 'Salmon Rice Bowl', serving: '1 Bowl (6oz)', grain: 'Brown Rice' },
+  ],
+  Beans: [
+    { id: 'MV401', name: 'Black Bean Veggie Burger', serving: '1 Sandwich', grain: 'WG Bun' },
+    { id: 'PF009', name: 'Chickpea Masala', serving: '3/4 Cup (7.5oz)', grain: 'Brown Rice' },
+    { id: 'R018', name: 'Hummus Avocado Wrap', serving: '1 Wrap', grain: 'WG Tortilla' },
+    { id: 'MV017', name: 'Bean & Cheese Nachos', serving: '1 Serving', grain: 'Tortilla Chips' },
+    { id: 'Ing002', name: '3 Sisters Stew', serving: '1 Cup (8.75oz)', grain: 'WG Roll' },
+    { id: 'FS034', name: 'Macaroni and Cheese K-8', serving: '3/4 Cup (5.7oz)', grain: 'WG Pasta' },
+  ],
+};
+
 // Sample menu templates based on allocated proteins
 const generateSampleMenu = (allocations: Record<string, CategoryAllocation>): MenuDay[][] => {
   const hasBeef = allocations.beef?.totalCost > 0;
@@ -73,36 +117,38 @@ const generateSampleMenu = (allocations: Record<string, CategoryAllocation>): Me
   // 5 weeks × 5 days
   const weeks: MenuDay[][] = [];
   
-  const proteins = [];
-  if (hasBeef) proteins.push({ name: 'Beef', dishes: ['Tacos', 'Burger', 'Meatballs', 'Sloppy Joe', 'Beef Stir-Fry'] });
-  if (hasPoultry) proteins.push({ name: 'Chicken', dishes: ['Fajitas', 'Teriyaki', 'Nuggets', 'Caesar Wrap', 'Roasted'] });
-  if (hasPork) proteins.push({ name: 'Pork', dishes: ['Carnitas', 'Pulled BBQ', 'Cutlet', 'Lo Mein', 'Ham & Cheese'] });
-  if (hasFish) proteins.push({ name: 'Fish', dishes: ['Baked Fillet', 'Fish Tacos', 'Fish Sticks', 'Salmon Bowl', 'Cod Nuggets'] });
-  if (hasLegumes) proteins.push({ name: 'Beans', dishes: ['Black Bean Burrito', 'Chili', 'Lentil Soup', 'Bean Tacos', 'Hummus Plate'] });
+  const proteins: { name: string; recipes: typeof recipesByProtein.Beef }[] = [];
+  if (hasBeef) proteins.push({ name: 'Beef', recipes: recipesByProtein.Beef });
+  if (hasPoultry) proteins.push({ name: 'Chicken', recipes: recipesByProtein.Chicken });
+  if (hasPork) proteins.push({ name: 'Pork', recipes: recipesByProtein.Pork });
+  if (hasFish) proteins.push({ name: 'Fish', recipes: recipesByProtein.Fish });
+  if (hasLegumes) proteins.push({ name: 'Beans', recipes: recipesByProtein.Beans });
   
   // Default if nothing allocated
   if (proteins.length === 0) {
-    proteins.push({ name: 'Chicken', dishes: ['Fajitas', 'Teriyaki', 'Nuggets', 'Caesar Wrap', 'Roasted'] });
-    proteins.push({ name: 'Beef', dishes: ['Tacos', 'Burger', 'Meatballs', 'Sloppy Joe', 'Beef Stir-Fry'] });
+    proteins.push({ name: 'Chicken', recipes: recipesByProtein.Chicken });
+    proteins.push({ name: 'Beef', recipes: recipesByProtein.Beef });
   }
 
-  const vegetables = ['Broccoli', 'Carrots', 'Green Beans', 'Corn', 'Sweet Potato', 'Mixed Salad', 'Peas', 'Zucchini'];
-  const fruits = ['Apple', 'Orange', 'Grapes', 'Banana', 'Melon', 'Berries', 'Pear', 'Peaches'];
-  const grains = ['Brown Rice', 'WG Roll', 'Pasta', 'Tortilla', 'WG Bread', 'Quinoa'];
+  const vegetables = ['Broccoli', 'Carrots', 'Green Beans', 'Corn Salad', 'Roasted Sweet Potato', 'Mixed Salad', 'Peas', 'Brussel Sprout Slaw'];
+  const fruits = ['Apple Slices', 'Orange Wedges', 'Grapes', 'Banana', 'Melon', 'Fresh Berries', 'Pear', 'Peaches'];
 
   for (let w = 0; w < 5; w++) {
     const week: MenuDay[] = [];
     for (let d = 0; d < 5; d++) {
       const proteinIdx = (w * 5 + d) % proteins.length;
       const protein = proteins[proteinIdx];
-      const dishIdx = d % protein.dishes.length;
+      const recipeIdx = (w + d) % protein.recipes.length;
+      const recipe = protein.recipes[recipeIdx];
       
       week.push({
-        entree: protein.dishes[dishIdx],
+        entree: recipe.name,
+        recipeId: recipe.id,
+        servingSize: recipe.serving,
         protein: protein.name,
         vegetable: vegetables[(w * 5 + d) % vegetables.length],
         fruit: fruits[(w * 5 + d) % fruits.length],
-        grain: grains[(w * 5 + d) % grains.length],
+        grain: recipe.grain, // Grain is now determined by the recipe
       });
     }
     weeks.push(week);
@@ -145,6 +191,10 @@ export default function MenuPage() {
   const [codeResults, setCodeResults] = useState<string[]>([]);
   const [showCode, setShowCode] = useState(false);
   const [statusText, setStatusText] = useState('');
+  
+  // Recipe detail dialog state
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
 
   useEffect(() => {
     // Load allocations from localStorage
@@ -159,6 +209,27 @@ export default function MenuPage() {
   }, []);
 
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+  // Find recipe by ID or name
+  const findRecipe = (menuDay: MenuDay): Recipe | null => {
+    if (menuDay.recipeId) {
+      const found = recipes.find(r => r.id === menuDay.recipeId);
+      if (found) return found;
+    }
+    // Fallback to name matching
+    return recipes.find(r => 
+      r.name.toLowerCase().includes(menuDay.entree.toLowerCase()) ||
+      menuDay.entree.toLowerCase().includes(r.name.toLowerCase())
+    ) || null;
+  };
+
+  const handleRecipeClick = (menuDay: MenuDay) => {
+    const recipe = findRecipe(menuDay);
+    if (recipe) {
+      setSelectedRecipe(recipe);
+      setRecipeDialogOpen(true);
+    }
+  };
 
   const checkCompliance = async () => {
     if (menu.length === 0) return;
@@ -265,10 +336,10 @@ export default function MenuPage() {
                 variant="h5"
                 sx={{ fontWeight: 500, fontFamily: '"Google Sans", sans-serif' }}
               >
-                Menu Cycle & Compliance
+                Menu Cycle & Recipes
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Distribute commodities across your 5-week menu and verify USDA compliance
+                View your 5-week menu with recipe details. Hover or click items for serving sizes and ingredients.
               </Typography>
             </Box>
             <Button
@@ -330,52 +401,101 @@ export default function MenuPage() {
                 mb: 3,
               }}
             >
-              {dayNames.map((day, idx) => (
-                <Box key={day}>
-                  <Typography
-                    variant="subtitle2"
-                    sx={{
-                      textAlign: 'center',
-                      mb: 1,
-                      fontWeight: 600,
-                      color: 'rgba(76, 175, 80, 0.8)',
-                    }}
-                  >
-                    {day}
-                  </Typography>
-                  <Box
-                    sx={{
-                      p: 1.5,
-                      bgcolor: 'rgba(255, 255, 255, 0.8)',
-                      borderRadius: 2,
-                      border: '1px solid rgba(0,0,0,0.08)',
-                      minHeight: 120,
-                    }}
-                  >
+              {dayNames.map((day, idx) => {
+                const menuDay = menu[selectedWeek]?.[idx];
+                const recipe = menuDay ? findRecipe(menuDay) : null;
+                
+                return (
+                  <Box key={day}>
                     <Typography
-                      variant="body2"
-                      sx={{ fontWeight: 600, mb: 0.5, fontSize: '0.85rem' }}
+                      variant="subtitle2"
+                      sx={{
+                        textAlign: 'center',
+                        mb: 1,
+                        fontWeight: 600,
+                        color: 'rgba(76, 175, 80, 0.8)',
+                      }}
                     >
-                      {menu[selectedWeek]?.[idx]?.entree}
+                      {day}
                     </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ display: 'block', color: 'rgba(76, 175, 80, 0.8)' }}
-                    >
-                      🥩 {menu[selectedWeek]?.[idx]?.protein}
-                    </Typography>
-                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                      🥬 {menu[selectedWeek]?.[idx]?.vegetable}
-                    </Typography>
-                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                      🍎 {menu[selectedWeek]?.[idx]?.fruit}
-                    </Typography>
-                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                      🌾 {menu[selectedWeek]?.[idx]?.grain}
-                    </Typography>
+                    <RecipeTooltip recipe={recipe}>
+                      <Box
+                        onClick={() => menuDay && handleRecipeClick(menuDay)}
+                        sx={{
+                          p: 1.5,
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          borderRadius: 2,
+                          border: '1px solid rgba(0,0,0,0.08)',
+                          minHeight: 140,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 1)',
+                            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.15)',
+                            borderColor: 'rgba(76, 175, 80, 0.3)',
+                            transform: 'translateY(-2px)',
+                          },
+                        }}
+                      >
+                        {/* Entree Name */}
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mb: 0.5 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ 
+                              fontWeight: 600, 
+                              fontSize: '0.85rem',
+                              flex: 1,
+                              color: 'rgba(45, 55, 72, 0.95)',
+                            }}
+                          >
+                            {menuDay?.entree}
+                          </Typography>
+                          <InfoOutlinedIcon 
+                            sx={{ 
+                              fontSize: 14, 
+                              color: 'rgba(76, 175, 80, 0.5)',
+                              mt: 0.3,
+                            }} 
+                          />
+                        </Box>
+                        
+                        {/* Serving Size Badge */}
+                        {menuDay?.servingSize && (
+                          <Chip
+                            label={menuDay.servingSize}
+                            size="small"
+                            sx={{
+                              height: 18,
+                              fontSize: '0.65rem',
+                              bgcolor: 'rgba(255, 152, 0, 0.1)',
+                              color: 'rgba(230, 126, 34, 0.9)',
+                              mb: 0.5,
+                              '& .MuiChip-label': { px: 0.75 },
+                            }}
+                          />
+                        )}
+                        
+                        {/* Components */}
+                        <Typography
+                          variant="caption"
+                          sx={{ display: 'block', color: 'rgba(76, 175, 80, 0.8)', fontWeight: 500 }}
+                        >
+                          🥩 {menuDay?.protein}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                          🥬 {menuDay?.vegetable}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                          🍎 {menuDay?.fruit}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                          🌾 {menuDay?.grain}
+                        </Typography>
+                      </Box>
+                    </RecipeTooltip>
                   </Box>
-                </Box>
-              ))}
+                );
+              })}
             </Box>
           )}
 
@@ -546,6 +666,13 @@ export default function MenuPage() {
           </Button>
         </Box>
       </Container>
+
+      {/* Recipe Detail Dialog */}
+      <RecipeDetailDialog
+        recipe={selectedRecipe}
+        open={recipeDialogOpen}
+        onClose={() => setRecipeDialogOpen(false)}
+      />
     </Box>
   );
 }
