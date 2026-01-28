@@ -5,8 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:prod": "BUILD_MODE=production next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "npm run build:prod && firebase deploy --only hosting --project wz-chef-ann",
+    "deploy:preview": "npm run build:prod && firebase hosting:channel:deploy preview --project wz-chef-ann"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

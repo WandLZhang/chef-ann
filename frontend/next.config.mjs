@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: 'export', // Uncomment for production static export
+  // Static export for production (Firebase Hosting)
+  // Controlled via BUILD_MODE env var - set in package.json scripts
+  output: process.env.BUILD_MODE === 'production' ? 'export' : undefined,
   trailingSlash: true,
   images: {
     unoptimized: true,
