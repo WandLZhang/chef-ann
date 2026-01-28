@@ -135,95 +135,109 @@
       }
     ]
   },
-  "vegetables": [
-    {
-      "wbscm_id": "110473",
-      "description": "Broccoli Florets, No Salt Added, Frozen",
-      "pack_size": "30 lb case",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 1.45,
-      "yield_factor": 0.90
-    },
-    {
-      "wbscm_id": "110480",
-      "description": "Carrots, Diced, No Salt Added, Frozen",
-      "pack_size": "30 lb case",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 0.95,
-      "yield_factor": 0.95
-    },
-    {
-      "wbscm_id": "110562",
-      "description": "Sweet Potatoes, Cubes, Frozen",
-      "pack_size": "30 lb bag",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 1.25,
-      "yield_factor": 0.90
-    },
-    {
-      "wbscm_id": "110425",
-      "description": "Spinach, Chopped, No Salt Added, Frozen",
-      "pack_size": "20 lb case",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 1.60,
-      "yield_factor": 0.85
-    },
-    {
-      "wbscm_id": "110600",
-      "description": "Mixed Vegetables, Canned",
-      "pack_size": "6/#10 can",
-      "caf_recommended": false,
-      "processing_level": "processed",
-      "est_cost_per_lb": 0.75,
-      "yield_factor": 1.0
-    }
-  ],
-  "fruits": [
-    {
-      "wbscm_id": "100517",
-      "description": "Apples, Empire, Fresh",
-      "pack_size": "40 lb case",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 0.85,
-      "yield_factor": 0.95
-    },
-    {
-      "wbscm_id": "100243",
-      "description": "Blueberries, Wild, Unsweetened, Frozen",
-      "pack_size": "30 lb case",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 3.50,
-      "yield_factor": 1.0
-    },
-    {
-      "wbscm_id": "100518",
-      "description": "Oranges, Navel, Fresh",
-      "pack_size": "40 lb case",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 0.75,
-      "yield_factor": 0.90
-    },
-    {
-      "wbscm_id": "100520",
-      "description": "Peaches, Sliced, Canned, Light Syrup",
-      "pack_size": "6/#10 can",
-      "caf_recommended": false,
-      "processing_level": "processed",
-      "est_cost_per_lb": 1.10,
-      "yield_factor": 1.0
-    }
-  ],
+  "vegetables": {
+    "dark_green": [
+      {
+        "wbscm_id": "110473",
+        "description": "Broccoli Florets, No Salt Added, Frozen",
+        "pack_size": "30 lb case",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 1.45,
+        "yield_factor": 0.90
+      },
+      {
+        "wbscm_id": "110425",
+        "description": "Spinach, Chopped, No Salt Added, Frozen (IQF)",
+        "pack_size": "20 lb case",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 1.60,
+        "yield_factor": 0.85
+      }
+    ],
+    "red_orange": [
+      {
+        "wbscm_id": "110480",
+        "description": "Carrots, Diced, No Salt Added, Frozen",
+        "pack_size": "30 lb case",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 0.95,
+        "yield_factor": 0.95
+      },
+      {
+        "wbscm_id": "110562",
+        "description": "Sweet Potatoes, Cubes, No Salt Added, Frozen",
+        "pack_size": "30 lb bag",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 1.25,
+        "yield_factor": 0.90
+      }
+    ],
+    "starchy": [
+      {
+        "wbscm_id": "100348",
+        "description": "Corn, Whole Kernel, No Salt Added, Frozen",
+        "pack_size": "30 lb case",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 0.85,
+        "yield_factor": 1.0
+      }
+    ],
+    "other": [
+      {
+        "wbscm_id": "110600",
+        "description": "Mixed Vegetables, Canned",
+        "pack_size": "6/#10 can",
+        "caf_recommended": false,
+        "processing_level": "processed",
+        "est_cost_per_lb": 0.75,
+        "yield_factor": 1.0
+      }
+    ]
+  },
+  "fruits": {
+    "fresh": [
+      {
+        "wbscm_id": "100517",
+        "description": "Apples, Empire, Fresh",
+        "pack_size": "40 lb case",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 0.85,
+        "yield_factor": 0.95
+      }
+    ],
+    "frozen": [
+      {
+        "wbscm_id": "100243",
+        "description": "Blueberries, Wild, Unsweetened, Frozen",
+        "pack_size": "30 lb case",
+        "caf_recommended": true,
+        "processing_level": "raw",
+        "est_cost_per_lb": 3.50,
+        "yield_factor": 1.0
+      }
+    ],
+    "canned": [
+      {
+        "wbscm_id": "100520",
+        "description": "Peaches, Sliced, Canned, Light Syrup",
+        "pack_size": "6/#10 can",
+        "caf_recommended": false,
+        "processing_level": "processed",
+        "est_cost_per_lb": 1.10,
+        "yield_factor": 1.0
+      }
+    ]
+  },
   "grains": [
     {
       "wbscm_id": "105012",
-      "description": "Pasta, Macaroni, Whole Grain-Rich Blend",
+      "description": "Pasta, Macaroni, WG-Rich Blend",
       "pack_size": "20 lb bag",
       "caf_recommended": true,
       "processing_level": "raw",
@@ -247,15 +261,6 @@
       "processing_level": "raw",
       "est_cost_per_lb": 0.75,
       "yield_factor": 2.8
-    },
-    {
-      "wbscm_id": "105025",
-      "description": "Flour, All-Purpose, Enriched",
-      "pack_size": "50 lb bag",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 0.35,
-      "yield_factor": 1.0
     }
   ],
   "dairy": [
@@ -284,15 +289,6 @@
       "caf_recommended": false,
       "processing_level": "processed",
       "est_cost_per_lb": 2.95,
-      "yield_factor": 1.0
-    },
-    {
-      "wbscm_id": "100310",
-      "description": "Butter, Salted, Grade AA",
-      "pack_size": "36/1 lb prints",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 4.25,
       "yield_factor": 1.0
     }
   ],
@@ -323,24 +319,6 @@
       "processing_level": "processed",
       "est_cost_per_lb": 0.65,
       "yield_factor": 1.0
-    },
-    {
-      "wbscm_id": "110863",
-      "description": "Chickpeas (Garbanzo Beans), Canned, Low Sodium",
-      "pack_size": "6/#10 can",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 0.60,
-      "yield_factor": 1.0
-    },
-    {
-      "wbscm_id": "110864",
-      "description": "Lentils, Dry",
-      "pack_size": "25 lb bag",
-      "caf_recommended": true,
-      "processing_level": "raw",
-      "est_cost_per_lb": 0.85,
-      "yield_factor": 2.5
     }
   ]
 }

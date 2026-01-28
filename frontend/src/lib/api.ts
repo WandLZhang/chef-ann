@@ -43,7 +43,7 @@ export interface Commodity {
 }
 
 export interface StreamEvent {
-  type: 'text' | 'code' | 'result' | 'done';
+  type: 'text' | 'code' | 'result' | 'done' | 'error';
   data: string | { output: string; outcome: string } | Record<string, unknown>;
 }
 
@@ -140,6 +140,9 @@ async function streamRequest(
                 break;
               case 'done':
                 callbacks.onDone?.(event.data as Record<string, unknown>);
+                break;
+              case 'error':
+                callbacks.onError?.(new Error(event.data as string));
                 break;
             }
           } catch {

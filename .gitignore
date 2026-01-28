@@ -40,3 +40,4 @@ npm-debug.log*
 # Testing
 coverage/
 .pytest_cache/
+.idx/dev.nix

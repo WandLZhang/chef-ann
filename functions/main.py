@@ -143,6 +143,31 @@ def handle_commodities(category=None):
     return jsonify(COMMODITIES), 200, cors_headers()
 
 
+def extract_all_commodities(data: dict) -> list:
+    """
+    Recursively extract all commodity items from nested data structure.
+    Handles structures like:
+    - proteins: {beef: [...], poultry: [...]}
+    - vegetables: {dark_green: [...], red_orange: [...]}
+    - grains: {single object with wbscm_id}
+    """
+    commodities = []
+    
+    if isinstance(data, list):
+        # It's already a list of commodities
+        commodities.extend(data)
+    elif isinstance(data, dict):
+        # Check if this dict IS a commodity (has wbscm_id)
+        if 'wbscm_id' in data:
+            commodities.append(data)
+        else:
+            # It's a nested structure, recurse into values
+            for value in data.values():
+                commodities.extend(extract_all_commodities(value))
+    
+    return commodities
+
+
 def handle_stream_allocate(data):
     """Handle streaming allocation calculation."""
     commodity_type = data.get('commodity_type', 'beef')
@@ -150,17 +175,18 @@ def handle_stream_allocate(data):
     oz_per_serving = data.get('oz_per_serving', 2.0)
     annual_meals = data.get('annual_meals', 3600000)
     
-    # Find commodity data for selected items
-    all_commodities = []
-    for cat in COMMODITIES.get("proteins", {}).values():
-        if isinstance(cat, list):
-            all_commodities.extend(cat)
+    # Find commodity data for selected items - search ALL categories
+    all_commodities = extract_all_commodities(COMMODITIES)
+    logger.info(f"Found {len(all_commodities)} total commodities across all categories")
     
     items_data = []
     for item in items:
-        commodity = next((c for c in all_commodities if c['wbscm_id'] == item.get('wbscm_id')), None)
+        wbscm_id = item.get('wbscm_id')
+        commodity = next((c for c in all_commodities if c.get('wbscm_id') == wbscm_id), None)
         if commodity:
             items_data.append({**commodity, "quantity_lbs": item.get("quantity_lbs", 0)})
+        else:
+            logger.warning(f"Commodity not found in data: {wbscm_id}")
     
     if not items_data:
         def error_gen():
