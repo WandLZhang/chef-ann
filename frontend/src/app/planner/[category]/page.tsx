@@ -48,6 +48,14 @@ interface Commodity {
   processing_level: string;
   est_cost_per_lb: number;
   yield_factor: number;
+  // New fields from usda_foods_comprehensive.json
+  case_weight_lbs?: number;
+  servings_per_case?: number;
+  serving_size_oz?: number;
+  cn_credit_oz?: number;
+  cn_credit_category?: string;
+  pack_size_description?: string;
+  source_url?: string;
 }
 
 // AllocationItem interface kept for future use
@@ -245,9 +253,10 @@ export default function CategoryPage() {
     setGeminiText('');
     setResults([]);
 
+    // Now sending quantity_cases instead of quantity_lbs
     const items = Array.from(allocations.entries()).map(([wbscmId, qty]) => ({
       wbscm_id: wbscmId,
-      quantity_lbs: qty,
+      quantity_cases: qty,  // Changed from quantity_lbs - backend now uses servings_per_case
     }));
 
     // Local variables to capture parsed values for saving
@@ -403,19 +412,19 @@ export default function CategoryPage() {
             size="small"
             startIcon={<AutoFixHighIcon />}
             onClick={() => {
-              // Set example allocations based on category (IDs match mock data)
+              // Set example allocations based on category - now in CASES
               const exampleData: Record<string, Map<string, number>> = {
-                beef: new Map([['100158', 3000], ['110349', 1000]]),
-                poultry: new Map([['111361', 5000], ['100101', 2000]]),
-                pork: new Map([['100200', 1500], ['100201', 1000]]),
-                fish: new Map([['110500', 800], ['110501', 400]]),
-                vegetables: new Map([['110473', 1000], ['110480', 800], ['110562', 600]]),
-                fruits: new Map([['100517', 1200], ['100243', 500]]),
-                grains: new Map([['105012', 500], ['100465', 300]]),
-                dairy: new Map([['100300', 600], ['100301', 400]]),
-                legumes: new Map([['110860', 400], ['110861', 300]]),
+                beef: new Map([['100158', 75], ['110349', 25]]),      // 75 cases, 25 cases
+                poultry: new Map([['111361', 125], ['100101', 50]]),  // 125 cases, 50 cases
+                pork: new Map([['100200', 40], ['100201', 25]]),      // 40 cases, 25 cases
+                fish: new Map([['110500', 80], ['110501', 40]]),      // 80 cases, 40 cases
+                vegetables: new Map([['110473', 35], ['110480', 25], ['110562', 20]]),
+                fruits: new Map([['100517', 30], ['100243', 15]]),
+                grains: new Map([['105012', 25], ['100465', 12]]),
+                dairy: new Map([['100300', 30], ['100301', 20]]),
+                legumes: new Map([['110860', 20], ['110861', 15]]),
               };
-              const example = exampleData[category] || new Map([['100158', 3000]]);
+              const example = exampleData[category] || new Map([['100158', 75]]);
               setAllocations(example);
             }}
             sx={{
@@ -758,6 +767,43 @@ function CommodityCard({
   onSetQuantity: (val: number) => void;
   isRecommended: boolean;
 }) {
+  // Calculate case-based values
+  const caseWeight = commodity.case_weight_lbs || 40; // Default 40 lb case
+  const servingsPerCase = commodity.servings_per_case || Math.round(caseWeight * 16 / 2); // Estimate if not available
+  const servingSizeOz = commodity.serving_size_oz || 2.0;
+  const cnCredit = commodity.cn_credit_oz || 2.0;
+  
+  // Build tooltip content for case info
+  const caseInfoTooltip = (
+    <Box sx={{ p: 1 }}>
+      <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+        📦 Case Info
+      </Typography>
+      <Typography variant="caption" sx={{ display: 'block' }}>
+        • {caseWeight} lbs/case
+      </Typography>
+      <Typography variant="caption" sx={{ display: 'block' }}>
+        • {servingsPerCase.toLocaleString()} servings/case
+      </Typography>
+      <Typography variant="caption" sx={{ display: 'block' }}>
+        • {servingSizeOz} oz/serving
+      </Typography>
+      <Typography variant="caption" sx={{ display: 'block' }}>
+        • CN Credit: {cnCredit} oz eq
+      </Typography>
+      {commodity.source_url && (
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'primary.light' }}>
+          📄 USDA Product Info Sheet
+        </Typography>
+      )}
+    </Box>
+  );
+
+  // Calculate total servings and cost based on cases
+  const totalServings = quantity * servingsPerCase;
+  const totalLbs = quantity * caseWeight;
+  const estimatedCost = totalLbs * commodity.est_cost_per_lb;
+
   return (
     <Card
       sx={{
@@ -783,30 +829,37 @@ function CommodityCard({
             {commodity.description}
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            WBSCM: {commodity.wbscm_id} | {commodity.pack_size}
+            WBSCM: {commodity.wbscm_id} | {commodity.pack_size_description || commodity.pack_size}
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+            <Tooltip title={caseInfoTooltip}>
+              <Chip
+                size="small"
+                label={`${caseWeight} lb case`}
+                icon={<InfoOutlinedIcon sx={{ fontSize: 14 }} />}
+                sx={{ fontSize: '0.7rem', height: 22, bgcolor: 'rgba(33, 150, 243, 0.1)' }}
+              />
+            </Tooltip>
             <Chip
               size="small"
-              label={`$${commodity.est_cost_per_lb}/lb`}
-              sx={{ fontSize: '0.7rem', height: 22 }}
+              label={`${servingsPerCase.toLocaleString()} srv/case`}
+              sx={{ fontSize: '0.7rem', height: 22, bgcolor: 'rgba(255, 152, 0, 0.1)' }}
             />
             <Tooltip title={`Yield: ${(commodity.yield_factor * 100).toFixed(0)}% - from Food Buying Guide`}>
               <Chip
                 size="small"
                 label={`Yield: ${(commodity.yield_factor * 100).toFixed(0)}%`}
-                icon={<InfoOutlinedIcon sx={{ fontSize: 14 }} />}
                 sx={{ fontSize: '0.7rem', height: 22 }}
               />
             </Tooltip>
           </Box>
         </Box>
 
-        {/* Quantity Controls */}
+        {/* Quantity Controls - Now in CASES */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton
             size="small"
-            onClick={() => onQuantityChange(-500)}
+            onClick={() => onQuantityChange(-1)}
             disabled={quantity === 0}
             sx={{ bgcolor: 'rgba(0,0,0,0.05)' }}
           >
@@ -817,20 +870,20 @@ function CommodityCard({
             value={quantity}
             onChange={(e) => onSetQuantity(parseInt(e.target.value) || 0)}
             sx={{
-              width: 80,
+              width: 70,
               '& input': { textAlign: 'center', fontWeight: 500 },
             }}
-            inputProps={{ min: 0, step: 500 }}
+            inputProps={{ min: 0, step: 1 }}
           />
           <IconButton
             size="small"
-            onClick={() => onQuantityChange(500)}
+            onClick={() => onQuantityChange(1)}
             sx={{ bgcolor: 'rgba(76, 175, 80, 0.1)' }}
           >
             <AddIcon fontSize="small" />
           </IconButton>
-          <Typography variant="caption" sx={{ ml: 0.5, color: 'text.secondary' }}>
-            lbs
+          <Typography variant="caption" sx={{ ml: 0.5, color: 'text.secondary', fontWeight: 500 }}>
+            cases
           </Typography>
         </Box>
       </Box>
@@ -841,15 +894,18 @@ function CommodityCard({
             mt: 2,
             pt: 1.5,
             borderTop: '1px solid rgba(0,0,0,0.08)',
-            display: 'flex',
-            justifyContent: 'space-between',
           }}
         >
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Estimated Cost:
-          </Typography>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(76, 175, 80, 0.9)' }}>
-            ${(quantity * commodity.est_cost_per_lb).toLocaleString()}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {quantity} case{quantity > 1 ? 's' : ''} = {totalLbs.toLocaleString()} lbs
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(76, 175, 80, 0.9)' }}>
+              ${estimatedCost.toLocaleString()}
+            </Typography>
+          </Box>
+          <Typography variant="caption" sx={{ color: 'rgba(255, 152, 0, 0.9)' }}>
+            ≈ {totalServings.toLocaleString()} servings
           </Typography>
         </Box>
       )}

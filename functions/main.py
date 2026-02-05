@@ -22,13 +22,19 @@ from google.genai import types
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Initialize Gemini client
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+# Initialize Gemini client using Vertex AI
+# Project from environment variable (GCP_PROJECT, GOOGLE_CLOUD_PROJECT, or fallback)
+GCP_PROJECT = os.environ.get("GCP_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT") or "wz-chef-ann"
+GCP_LOCATION = os.environ.get("GCP_LOCATION", "global")  # gemini-3-pro-preview is in 'global' region
 MODEL = "gemini-3-pro-preview"
 
 def get_client():
-    """Create Gemini client."""
-    return genai.Client(api_key=GEMINI_API_KEY)
+    """Create Gemini client using Vertex AI with application-default credentials."""
+    return genai.Client(
+        vertexai=True,
+        project=GCP_PROJECT,
+        location=GCP_LOCATION
+    )
 
 # Load data files from local directory
 DATA_DIR = Path(__file__).parent / "data"
@@ -43,7 +49,9 @@ def load_json(filename: str) -> dict:
     return {}
 
 # Pre-load data at cold start
-COMMODITIES = load_json("usda_foods_sy26_27.json")
+# Use comprehensive data with servings_per_case extracted from USDA Product Info Sheets
+COMMODITIES_COMPREHENSIVE = load_json("usda_foods_comprehensive.json")
+COMMODITIES = load_json("usda_foods_sy26_27.json")  # Fallback for legacy structure
 MEAL_PATTERNS = load_json("usda_meal_patterns.json")
 DISTRICT_PROFILE = load_json("district_profile.json")
 FBG_YIELDS = load_json("food_buying_guide_yields.json")
@@ -169,24 +177,68 @@ def extract_all_commodities(data: dict) -> list:
 
 
 def handle_stream_allocate(data):
-    """Handle streaming allocation calculation."""
+    """Handle streaming allocation calculation.
+    
+    Now accepts quantity_cases (number of cases) instead of quantity_lbs.
+    Uses servings_per_case from USDA Product Info Sheets for accurate serving counts.
+    """
     commodity_type = data.get('commodity_type', 'beef')
     items = data.get('items', [])
     oz_per_serving = data.get('oz_per_serving', 2.0)
     annual_meals = data.get('annual_meals', 3397500)
     
-    # Find commodity data for selected items - search ALL categories
-    all_commodities = extract_all_commodities(COMMODITIES)
-    logger.info(f"Found {len(all_commodities)} total commodities across all categories")
+    # Use comprehensive data if available (has servings_per_case from USDA Product Sheets)
+    comprehensive_products = COMMODITIES_COMPREHENSIVE.get('all_products', [])
+    legacy_commodities = extract_all_commodities(COMMODITIES)
+    
+    logger.info(f"Comprehensive data: {len(comprehensive_products)} products")
+    logger.info(f"Legacy data: {len(legacy_commodities)} commodities")
     
     items_data = []
     for item in items:
-        wbscm_id = item.get('wbscm_id')
-        commodity = next((c for c in all_commodities if c.get('wbscm_id') == wbscm_id), None)
+        wbscm_id = str(item.get('wbscm_id', ''))
+        # Frontend now sends quantity as cases, but support both for backwards compatibility
+        quantity_cases = item.get('quantity_cases', item.get('quantity_lbs', 0))
+        
+        # First try comprehensive data (has servings_per_case)
+        commodity = next((c for c in comprehensive_products if str(c.get('wbscm_id', '')) == wbscm_id), None)
+        
         if commodity:
-            items_data.append({**commodity, "quantity_lbs": item.get("quantity_lbs", 0)})
+            # Use USDA Product Info Sheet data with servings_per_case
+            case_weight = commodity.get('case_weight_lbs', 40)
+            servings_per_case = commodity.get('servings_per_case')
+            
+            items_data.append({
+                "wbscm_id": wbscm_id,
+                "description": commodity.get('description', 'Unknown'),
+                "quantity_cases": quantity_cases,
+                "case_weight_lbs": case_weight,
+                "quantity_lbs": quantity_cases * case_weight,
+                "servings_per_case": servings_per_case,
+                "serving_size_oz": commodity.get('serving_size_oz', 2.0),
+                "cn_credit_oz": commodity.get('cn_credit_oz', 2.0),
+                "est_cost_per_lb": commodity.get('est_cost_per_lb', 3.0),  # Default if not in comprehensive
+                "yield_factor": commodity.get('yield_factor', 0.75),
+                "source": "usda_product_sheet"
+            })
         else:
-            logger.warning(f"Commodity not found in data: {wbscm_id}")
+            # Fallback to legacy data
+            legacy = next((c for c in legacy_commodities if str(c.get('wbscm_id', '')) == wbscm_id), None)
+            if legacy:
+                case_weight = 40  # Default case weight
+                items_data.append({
+                    "wbscm_id": wbscm_id,
+                    "description": legacy.get('description', 'Unknown'),
+                    "quantity_cases": quantity_cases,
+                    "case_weight_lbs": case_weight,
+                    "quantity_lbs": quantity_cases * case_weight,
+                    "servings_per_case": None,  # Will calculate from yield
+                    "est_cost_per_lb": legacy.get('est_cost_per_lb', 3.0),
+                    "yield_factor": legacy.get('yield_factor', 0.75),
+                    "source": "legacy_estimate"
+                })
+            else:
+                logger.warning(f"Commodity not found in any data source: {wbscm_id}")
     
     if not items_data:
         def error_gen():
@@ -194,28 +246,29 @@ def handle_stream_allocate(data):
         return Response(error_gen(), mimetype='text/event-stream', headers=cors_headers())
     
     prompt = f"""
-Calculate commodity allocation for this order:
+Calculate commodity allocation for this order.
 
-**Items:**
+**Items with USDA Product Sheet Data:**
 {json.dumps(items_data, indent=2)}
 
-**Yield Factors:**
-{json.dumps(FBG_YIELDS, indent=2)}
-
 **Parameters:**
-- Serving size: {oz_per_serving} oz cooked meat per serving
+- Default serving size: {oz_per_serving} oz cooked meat per serving
 - Annual meals: {annual_meals:,}
 
-Using Python code execution, calculate for each item:
-1. Total cost (quantity_lbs × est_cost_per_lb)
-2. Number of cases (quantity_lbs ÷ case weight, rounded up)
-3. Total cooked ounces (quantity_lbs × 16 × yield_factor)
-4. Number of servings (cooked_oz ÷ oz_per_serving)
+Using Python code execution, calculate for EACH item:
+
+1. **Total Cost**: quantity_lbs × est_cost_per_lb
+2. **Number of Cases**: quantity_cases (already provided)
+3. **Number of Servings**:
+   - If servings_per_case is available (from USDA Product Sheet): cases × servings_per_case
+   - If servings_per_case is null: Calculate as (quantity_lbs × 16 × yield_factor) ÷ serving_size_oz
 
 Then calculate:
 - Grand total cost
 - Grand total servings
-- Percentage of annual meals covered
+- Percentage of annual meals covered (total_servings / annual_meals × 100)
+
+IMPORTANT: Use servings_per_case when available - it's the accurate count from USDA Product Info Sheets.
 
 Print results as JSON:
 {{

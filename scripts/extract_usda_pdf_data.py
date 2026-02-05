@@ -23,8 +23,12 @@ import re
 import time
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+
+# Load environment variables from .env file
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Configure logging
 logging.basicConfig(
@@ -37,7 +41,8 @@ logger = logging.getLogger(__name__)
 MODEL = "gemini-3-pro-preview"
 PDF_DIR = Path(__file__).parent.parent / "context" / "usda_info_sheets"
 OUTPUT_FILE = Path(__file__).parent.parent / "data" / "usda_foods_comprehensive.json"
-USDA_BASE_URL = "https://www.fns.usda.gov/sites/default/files/resource-files/"
+URL_MAPPING_FILE = Path(__file__).parent.parent / "context" / "usda_pdf_url_mapping.txt"
+USDA_BASE_URL = "https://www.fns.usda.gov"
 
 # Extraction prompt
 EXTRACTION_PROMPT = """Analyze this USDA Product Information Sheet PDF and extract the following data.
@@ -74,6 +79,36 @@ def get_client():
     return genai.Client(api_key=api_key)
 
 
+def load_url_mapping() -> dict:
+    """
+    Load URL mapping from file and build WBSCM ID to full URL mapping.
+    
+    @return: Dict mapping WBSCM ID to full USDA URL
+    """
+    url_map = {}
+    
+    if not URL_MAPPING_FILE.exists():
+        logger.warning(f"URL mapping file not found: {URL_MAPPING_FILE}")
+        return url_map
+    
+    with open(URL_MAPPING_FILE, 'r') as f:
+        for line in f:
+            url_path = line.strip()
+            if not url_path:
+                continue
+            
+            # Extract WBSCM ID from the URL path (first 5-6 digits of filename)
+            filename = url_path.split('/')[-1]  # e.g., "110349-BeefPatties100Percent85-15Raw-Frozen.pdf"
+            match = re.match(r'^(\d{5,6})', filename)
+            if match:
+                wbscm_id = match.group(1)
+                full_url = USDA_BASE_URL + url_path
+                url_map[wbscm_id] = full_url
+    
+    logger.info(f"Loaded {len(url_map)} URL mappings")
+    return url_map
+
+
 def extract_wbscm_id_from_filename(filename: str) -> str:
     """Extract WBSCM ID from PDF filename."""
     # Pattern: starts with 6 digits, possibly with some variation
@@ -92,18 +127,8 @@ def extract_data_from_pdf(client, pdf_path: Path) -> dict:
     @return: Extracted data dictionary
     """
     try:
-        # Read PDF content
-        with open(pdf_path, 'rb') as f:
-            pdf_bytes = f.read()
-        
-        # Upload file to Gemini
-        uploaded_file = client.files.upload(
-            file=pdf_bytes,
-            config=types.UploadFileConfig(
-                display_name=pdf_path.name,
-                mime_type="application/pdf"
-            )
-        )
+        # Upload file to Gemini using file path
+        uploaded_file = client.files.upload(file=str(pdf_path))
         
         # Generate content with the PDF
         response = client.models.generate_content(
@@ -193,6 +218,9 @@ def main():
     """Main extraction function."""
     logger.info("Starting USDA PDF data extraction...")
     
+    # Load URL mapping for source citations
+    url_map = load_url_mapping()
+    
     # Get all PDF files
     pdf_files = sorted(PDF_DIR.glob("*.pdf"))
     logger.info(f"Found {len(pdf_files)} PDF files")
@@ -214,6 +242,16 @@ def main():
         else:
             # Normalize category
             data["category"] = categorize_product(data)
+            
+            # Add source URL for citation
+            wbscm_id = data.get("wbscm_id")
+            if wbscm_id and wbscm_id in url_map:
+                data["source_url"] = url_map[wbscm_id]
+            else:
+                # Fallback: construct URL from filename
+                data["source_url"] = None
+                logger.warning(f"No URL mapping found for WBSCM ID: {wbscm_id}")
+            
             results.append(data)
         
         # Rate limiting - small delay between requests

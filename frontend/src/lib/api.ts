@@ -14,7 +14,7 @@ const API_BASE = 'https://us-central1-wz-chef-ann.cloudfunctions.net/chef-ann-ap
 
 export interface AllocationItem {
   wbscm_id: string;
-  quantity_lbs: number;
+  quantity_cases: number;  // Changed from quantity_lbs - backend now uses cases with servings_per_case
 }
 
 export interface AllocationRequest {

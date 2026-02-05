@@ -10,11 +10,12 @@
 #      - gcloud services enable cloudfunctions.googleapis.com
 #      - gcloud services enable cloudbuild.googleapis.com
 #      - gcloud services enable run.googleapis.com
+#      - gcloud services enable aiplatform.googleapis.com
 #
 # Usage:
-#   ./deploy.sh [GEMINI_API_KEY]
+#   ./deploy.sh
 #
-# If GEMINI_API_KEY is not provided, you must set it as an environment variable
+# Uses Vertex AI with service account (no API key needed)
 #
 
 set -e
@@ -28,21 +29,15 @@ MEMORY="2Gi"
 CPU="2"
 TIMEOUT="300"
 MAX_INSTANCES="100"
-
-# Get API key from argument or environment
-GEMINI_API_KEY="${1:-$GEMINI_API_KEY}"
-
-if [ -z "$GEMINI_API_KEY" ]; then
-    echo "❌ Error: GEMINI_API_KEY is required"
-    echo "   Usage: ./deploy.sh YOUR_GEMINI_API_KEY"
-    echo "   Or set GEMINI_API_KEY environment variable"
-    exit 1
-fi
+GCP_PROJECT="${GCP_PROJECT:-wz-chef-ann}"
+GCP_LOCATION="global"  # gemini-3-pro-preview requires global region
 
 echo "🚀 Deploying Chef Ann Cloud Function..."
 echo "   Function: $FUNCTION_NAME"
 echo "   Region: $REGION"
 echo "   Runtime: $RUNTIME"
+echo "   GCP Project: $GCP_PROJECT"
+echo "   Vertex AI Location: $GCP_LOCATION"
 echo ""
 
 # Deploy the function
@@ -54,7 +49,7 @@ gcloud functions deploy $FUNCTION_NAME \
     --entry-point=$ENTRY_POINT \
     --trigger-http \
     --allow-unauthenticated \
-    --set-env-vars GEMINI_API_KEY=$GEMINI_API_KEY \
+    --set-env-vars GCP_PROJECT=$GCP_PROJECT,GCP_LOCATION=$GCP_LOCATION \
     --memory=$MEMORY \
     --cpu=$CPU \
     --timeout=$TIMEOUT \
