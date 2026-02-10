@@ -123,6 +123,33 @@ def stream_gemini(prompt: str, enable_code_execution: bool = True):
         yield f'data: {json.dumps({"type": "error", "data": str(e)})}\n\n'
 
 
+def enrich_commodity(commodity: dict) -> dict:
+    """Enrich a commodity from usda_foods_sy26_27 with comprehensive data.
+    
+    Merges in servings_per_case, case_weight_lbs, serving_size_oz, cn_credit_oz,
+    cn_credit_category, pack_size_description, and source_url from 
+    usda_foods_comprehensive.json so the frontend has accurate USDA Product 
+    Info Sheet data for display (instead of falling back to estimates).
+    """
+    comprehensive_products = COMMODITIES_COMPREHENSIVE.get('all_products', [])
+    wbscm_id = str(commodity.get('wbscm_id', ''))
+    match = next((c for c in comprehensive_products if str(c.get('wbscm_id', '')) == wbscm_id), None)
+    if match:
+        enriched = dict(commodity)
+        # Add fields from comprehensive data that the frontend needs
+        for field in ['case_weight_lbs', 'servings_per_case', 'serving_size_oz',
+                      'cn_credit_oz', 'cn_credit_category', 'pack_size_description', 'source_url']:
+            if field in match and match[field] is not None:
+                enriched[field] = match[field]
+        return enriched
+    return commodity
+
+
+def enrich_commodity_list(commodities: list) -> list:
+    """Enrich a list of commodities with comprehensive data."""
+    return [enrich_commodity(c) for c in commodities]
+
+
 def handle_commodities(category=None):
     """Handle /api/commodities endpoints.
     
@@ -133,19 +160,26 @@ def handle_commodities(category=None):
     - grains: [...]
     - dairy: [...]
     - legumes: [...]
+    
+    All returned commodities are enriched with data from usda_foods_comprehensive.json
+    (servings_per_case, case_weight_lbs, etc.) so the frontend displays accurate
+    USDA Product Info Sheet values instead of fallback estimates.
     """
     if category:
         # Check if it's a protein subcategory (beef, poultry, pork, fish)
         if category in COMMODITIES.get("proteins", {}):
-            return jsonify(COMMODITIES["proteins"].get(category, [])), 200, cors_headers()
+            items = COMMODITIES["proteins"].get(category, [])
+            return jsonify(enrich_commodity_list(items)), 200, cors_headers()
         # Check if it's a top-level category (vegetables, fruits, grains, dairy, legumes)
         elif category in COMMODITIES:
             data = COMMODITIES.get(category, [])
-            # If it's proteins, return the whole nested structure
+            # If it's proteins, return the whole nested structure (enrich each sub-list)
             if isinstance(data, dict):
-                return jsonify(data), 200, cors_headers()
-            # Otherwise return the array
-            return jsonify(data), 200, cors_headers()
+                enriched = {k: enrich_commodity_list(v) if isinstance(v, list) else v 
+                            for k, v in data.items()}
+                return jsonify(enriched), 200, cors_headers()
+            # Otherwise return the enriched array
+            return jsonify(enrich_commodity_list(data)), 200, cors_headers()
         else:
             return jsonify({"error": f"Category '{category}' not found"}), 404, cors_headers()
     return jsonify(COMMODITIES), 200, cors_headers()
