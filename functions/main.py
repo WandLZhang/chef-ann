@@ -49,13 +49,55 @@ def load_json(filename: str) -> dict:
     return {}
 
 # Pre-load data at cold start
-# Use comprehensive data with servings_per_case extracted from USDA Product Info Sheets
+# Comprehensive data is SOURCE OF TRUTH (extracted from USDA Product Info Sheet PDFs)
 COMMODITIES_COMPREHENSIVE = load_json("usda_foods_comprehensive.json")
-COMMODITIES = load_json("usda_foods_sy26_27.json")  # Fallback for legacy structure
+COMMODITIES_LEGACY = load_json("usda_foods_sy26_27.json")  # Legacy - only used for est_cost_per_lb
 MEAL_PATTERNS = load_json("usda_meal_patterns.json")
 DISTRICT_PROFILE = load_json("district_profile.json")
 FBG_YIELDS = load_json("food_buying_guide_yields.json")
 
+# Build cost lookup from legacy data (only thing legacy has that comprehensive doesn't)
+def _build_cost_lookup(legacy_data: dict) -> dict:
+    """Build WBSCM ID → est_cost_per_lb lookup from legacy data."""
+    lookup = {}
+    def _extract(obj):
+        if isinstance(obj, list):
+            for item in obj:
+                _extract(item)
+        elif isinstance(obj, dict):
+            if 'wbscm_id' in obj and 'est_cost_per_lb' in obj:
+                lookup[str(obj['wbscm_id'])] = obj['est_cost_per_lb']
+            else:
+                for v in obj.values():
+                    _extract(v)
+    _extract(legacy_data)
+    return lookup
+
+COST_LOOKUP = _build_cost_lookup(COMMODITIES_LEGACY)
+logger.info(f"Built cost lookup with {len(COST_LOOKUP)} entries")
+
+# Category mapping: frontend route slug → comprehensive JSON category key(s)
+# Verified from comprehensive JSON: beans(16), beef(10), cheese(14), dairy(4),
+# eggs(3), fish(2), fruits(34), grains(17), other(2), pork(6), poultry(16), vegetables(37)
+CATEGORY_MAP = {
+    'beef': ['beef'],
+    'poultry': ['poultry'],
+    'pork': ['pork'],
+    'fish': ['fish'],
+    'vegetables': ['vegetables'],
+    'fruits': ['fruits'],
+    'grains': ['grains'],
+    'dairy': ['dairy', 'cheese', 'eggs'],  # Merge yogurts + cheeses + eggs
+    'legumes': ['beans'],
+}
+
+# Default cost estimates by category ($/lb, used when no legacy match exists)
+DEFAULT_COST_PER_LB = {
+    'beef': 3.25, 'poultry': 2.10, 'pork': 2.15, 'fish': 2.80,
+    'cheese': 3.80, 'dairy': 3.50, 'eggs': 2.00,
+    'vegetables': 1.20, 'fruits': 1.50, 'grains': 0.65,
+    'beans': 0.55, 'other': 2.00,
+}
 
 def cors_headers():
     """Return CORS headers for all responses."""
@@ -150,39 +192,46 @@ def enrich_commodity_list(commodities: list) -> list:
     return [enrich_commodity(c) for c in commodities]
 
 
+def _add_cost_to_product(product: dict) -> dict:
+    """Add est_cost_per_lb to a comprehensive product from legacy cost lookup."""
+    enriched = dict(product)
+    wbscm_id = str(product.get('wbscm_id', ''))
+    if wbscm_id in COST_LOOKUP:
+        enriched['est_cost_per_lb'] = COST_LOOKUP[wbscm_id]
+    else:
+        cat = product.get('category', 'other')
+        enriched['est_cost_per_lb'] = DEFAULT_COST_PER_LB.get(cat, 2.00)
+    # Derive caf_recommended from processing_level
+    enriched['caf_recommended'] = product.get('processing_level', 'processed') == 'raw'
+    return enriched
+
+
 def handle_commodities(category=None):
     """Handle /api/commodities endpoints.
     
-    Data structure:
-    - proteins: {beef: [...], poultry: [...], pork: [...], fish: [...]}
-    - vegetables: [...]
-    - fruits: [...]
-    - grains: [...]
-    - dairy: [...]
-    - legumes: [...]
-    
-    All returned commodities are enriched with data from usda_foods_comprehensive.json
-    (servings_per_case, case_weight_lbs, etc.) so the frontend displays accurate
-    USDA Product Info Sheet values instead of fallback estimates.
+    Serves directly from usda_foods_comprehensive.json (source of truth).
+    Maps frontend route slugs to comprehensive JSON categories via CATEGORY_MAP.
+    Adds est_cost_per_lb from legacy data and derives caf_recommended from processing_level.
     """
+    comprehensive_cats = COMMODITIES_COMPREHENSIVE.get('products_by_category', {})
+    
     if category:
-        # Check if it's a protein subcategory (beef, poultry, pork, fish)
-        if category in COMMODITIES.get("proteins", {}):
-            items = COMMODITIES["proteins"].get(category, [])
-            return jsonify(enrich_commodity_list(items)), 200, cors_headers()
-        # Check if it's a top-level category (vegetables, fruits, grains, dairy, legumes)
-        elif category in COMMODITIES:
-            data = COMMODITIES.get(category, [])
-            # If it's proteins, return the whole nested structure (enrich each sub-list)
-            if isinstance(data, dict):
-                enriched = {k: enrich_commodity_list(v) if isinstance(v, list) else v 
-                            for k, v in data.items()}
-                return jsonify(enriched), 200, cors_headers()
-            # Otherwise return the enriched array
-            return jsonify(enrich_commodity_list(data)), 200, cors_headers()
+        if category in CATEGORY_MAP:
+            # Merge products from all mapped comprehensive categories
+            items = []
+            for comp_cat in CATEGORY_MAP[category]:
+                items.extend(comprehensive_cats.get(comp_cat, []))
+            # Add cost data and caf_recommended
+            items = [_add_cost_to_product(p) for p in items]
+            logger.info(f"Serving {len(items)} products for category '{category}'")
+            return jsonify(items), 200, cors_headers()
         else:
-            return jsonify({"error": f"Category '{category}' not found"}), 404, cors_headers()
-    return jsonify(COMMODITIES), 200, cors_headers()
+            return jsonify({"error": f"Category '{category}' not found. Valid: {list(CATEGORY_MAP.keys())}"}), 404, cors_headers()
+    
+    # Return all categories summary
+    summary = {slug: len(sum([comprehensive_cats.get(c, []) for c in comp_cats], []))
+                for slug, comp_cats in CATEGORY_MAP.items()}
+    return jsonify(summary), 200, cors_headers()
 
 
 def extract_all_commodities(data: dict) -> list:
@@ -223,7 +272,7 @@ def handle_stream_allocate(data):
     
     # Use comprehensive data if available (has servings_per_case from USDA Product Sheets)
     comprehensive_products = COMMODITIES_COMPREHENSIVE.get('all_products', [])
-    legacy_commodities = extract_all_commodities(COMMODITIES)
+    legacy_commodities = extract_all_commodities(COMMODITIES_LEGACY)
     
     logger.info(f"Comprehensive data: {len(comprehensive_products)} products")
     logger.info(f"Legacy data: {len(legacy_commodities)} commodities")

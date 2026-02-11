@@ -32,14 +32,32 @@ export interface AllocationResult {
   servings: number;
 }
 
+/**
+ * @brief Commodity data from usda_foods_comprehensive.json (source of truth)
+ * 
+ * @details All fields come from USDA Product Info Sheet PDFs, enriched with
+ * est_cost_per_lb from legacy FAL data and caf_recommended derived from processing_level.
+ */
 export interface Commodity {
   wbscm_id: string;
   description: string;
-  pack_size: string;
+  category: string;
   caf_recommended: boolean;
   processing_level: string;
   est_cost_per_lb: number;
-  yield_factor: number;
+  case_weight_lbs: number | null;
+  servings_per_case: number | null;
+  serving_size_oz: number | null;
+  cn_credit_oz: number | null;
+  cn_credit_category: string | null;
+  pack_size_description: string | null;
+  calories_per_serving: number | null;
+  protein_per_serving: number | null;
+  notes: string | null;
+  source_url: string | null;
+  // Legacy fields (fallback only)
+  pack_size?: string;
+  yield_factor?: number;
 }
 
 export interface StreamEvent {

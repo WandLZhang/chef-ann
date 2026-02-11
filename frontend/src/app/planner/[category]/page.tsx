@@ -6,13 +6,17 @@
  * - Scratch-Cooking Focused (recommended, whole/raw)
  * - Processed (with soy, pre-cooked)
  * 
- * Uses streaming Gemini API for real-time calculations
- * and shows "See Calculation" with source citations.
+ * All calculations (servings, cost) are done in real-time in the frontend
+ * using servings_per_case from USDA Product Info Sheets (source of truth).
+ * No Gemini API calls needed — it's just multiplication.
+ * 
+ * @author Chef Ann Foundation
+ * @date 2026-02-10
  */
 
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Box,
@@ -23,50 +27,30 @@ import {
   IconButton,
   TextField,
   Chip,
-  Drawer,
   Divider,
   CircularProgress,
   Tooltip,
+  Link,
 } from '@mui/material';
 import { gsap } from 'gsap';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import CodeIcon from '@mui/icons-material/Code';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import { streamAllocate, getCommodities, type StreamCallbacks } from '@/lib/api';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { getCommodities, type Commodity } from '@/lib/api';
 
-// Types
-interface Commodity {
-  wbscm_id: string;
+/** Summary for a single allocated item */
+interface AllocationSummaryItem {
+  wbscmId: string;
   description: string;
-  pack_size: string;
-  caf_recommended: boolean;
-  processing_level: string;
-  est_cost_per_lb: number;
-  yield_factor: number;
-  // New fields from usda_foods_comprehensive.json
-  case_weight_lbs?: number;
-  servings_per_case?: number;
-  serving_size_oz?: number;
-  cn_credit_oz?: number;
-  cn_credit_category?: string;
-  pack_size_description?: string;
-  source_url?: string;
-}
-
-// AllocationItem interface kept for future use
-// interface AllocationItem { commodity: Commodity; quantity_lbs: number; }
-
-interface CalculationResult {
-  wbscm_id: string;
-  description: string;
-  cost: number;
   cases: number;
+  cost: number;
   servings: number;
+  sourceUrl: string | null;
 }
 
 // Category metadata
@@ -92,86 +76,23 @@ export default function CategoryPage() {
   const [commodities, setCommodities] = useState<Commodity[]>([]);
   const [allocations, setAllocations] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [calculating, setCalculating] = useState(false);
-  const [calcStatus, setCalcStatus] = useState('');
-  const [isRealStatus, setIsRealStatus] = useState(false);
-  const [results, setResults] = useState<CalculationResult[]>([]);
-  const [totalCost, setTotalCost] = useState(0);
-  const [totalServings, setTotalServings] = useState(0);
-  
-  // Calculation drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [codeBlocks, setCodeBlocks] = useState<string[]>([]);
-  const [codeResults, setCodeResults] = useState<string[]>([]);
-  const [_geminiText, setGeminiText] = useState('');
 
-  // Fetch commodities for this category
+  // Fetch commodities from backend (serves from comprehensive JSON)
   useEffect(() => {
     async function fetchCommodities() {
       try {
         const data = await getCommodities(category);
         if (Array.isArray(data)) {
+          console.log(`✅ Loaded ${data.length} products for category '${category}' from comprehensive JSON`);
           setCommodities(data);
         } else if (data && typeof data === 'object') {
-          // Handle nested structure
           const items = Object.values(data).flat() as Commodity[];
+          console.log(`✅ Loaded ${items.length} products for category '${category}' (nested)`);
           setCommodities(items);
         }
       } catch (error) {
-        console.error('Failed to fetch commodities:', error);
-        console.log('Using mock data for category:', category);
-        // Use category-specific mock data for demo
-        const mockData: Record<string, Commodity[]> = {
-          beef: [
-            { wbscm_id: '100158', description: 'Beef, Fine Ground, 100%, 85/15, Raw, Frozen', pack_size: '40 lb case', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 3.25, yield_factor: 0.75 },
-            { wbscm_id: '110349', description: 'Beef, Patties, 100%, 85/15, Raw, 2.0 M/MA', pack_size: '40 lb case', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 3.40, yield_factor: 0.85 },
-            { wbscm_id: '100134', description: 'Beef, Crumbles w/Soy Protein, Cooked, Frozen', pack_size: '4/10 lb bag', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 2.85, yield_factor: 1.0 },
-            { wbscm_id: '110322', description: 'Beef, Patties w/Soy Protein, Cooked, 2.0 M/MA', pack_size: '40 lb case', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 2.90, yield_factor: 0.95 },
-          ],
-          poultry: [
-            { wbscm_id: '111361', description: 'Chicken, Cut-up, Raw, Frozen', pack_size: '4/10 lb bag', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 1.85, yield_factor: 0.65 },
-            { wbscm_id: '100125', description: 'Turkey, Roast, Raw, Frozen', pack_size: '4/8-12 lb roasts', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 2.10, yield_factor: 0.75 },
-            { wbscm_id: '100101', description: 'Chicken, Diced, Cooked, Frozen', pack_size: '8/5 lb bag', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 2.45, yield_factor: 1.0 },
-            { wbscm_id: '111881', description: 'Chicken, Pulled, Cooked, Frozen', pack_size: '6/5 lb bag', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 2.55, yield_factor: 1.0 },
-          ],
-          pork: [
-            { wbscm_id: '100200', description: 'Pork, Ham, Boneless, Raw, Frozen', pack_size: '4/10 lb case', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 2.15, yield_factor: 0.80 },
-            { wbscm_id: '100201', description: 'Pork, Ground, Raw, Frozen', pack_size: '40 lb case', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 1.95, yield_factor: 0.75 },
-            { wbscm_id: '100202', description: 'Pork, Sausage Patties, Cooked, Frozen', pack_size: '10 lb box', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 2.35, yield_factor: 0.95 },
-          ],
-          fish: [
-            { wbscm_id: '110500', description: 'Fish, Pollock, Fillets, Raw, Frozen', pack_size: '10 lb box', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 2.80, yield_factor: 0.85 },
-            { wbscm_id: '110501', description: 'Fish, Salmon, Portions, Raw, Frozen', pack_size: '10 lb box', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 4.50, yield_factor: 0.90 },
-            { wbscm_id: '110502', description: 'Fish, Sticks, Breaded, Cooked, Frozen', pack_size: '30 lb case', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 2.20, yield_factor: 0.95 },
-          ],
-          vegetables: [
-            { wbscm_id: '110473', description: 'Broccoli Florets, No Salt, Frozen', pack_size: '30 lb case', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 1.45, yield_factor: 0.90 },
-            { wbscm_id: '110480', description: 'Carrots, Diced, No Salt, Frozen', pack_size: '30 lb case', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 0.95, yield_factor: 0.95 },
-            { wbscm_id: '110562', description: 'Sweet Potatoes, Cubes, Frozen', pack_size: '30 lb bag', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 1.25, yield_factor: 0.90 },
-            { wbscm_id: '110600', description: 'Mixed Vegetables, Canned', pack_size: '6/#10 can', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 0.75, yield_factor: 1.0 },
-          ],
-          fruits: [
-            { wbscm_id: '100517', description: 'Apples, Empire, Fresh', pack_size: '40 lb case', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 0.85, yield_factor: 0.95 },
-            { wbscm_id: '100243', description: 'Blueberries, Wild, Frozen', pack_size: '30 lb case', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 3.50, yield_factor: 1.0 },
-            { wbscm_id: '100520', description: 'Peaches, Sliced, Canned, Light Syrup', pack_size: '6/#10 can', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 1.10, yield_factor: 1.0 },
-          ],
-          grains: [
-            { wbscm_id: '105012', description: 'Pasta, Macaroni, WG-Rich Blend', pack_size: '20 lb bag', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 0.65, yield_factor: 2.5 },
-            { wbscm_id: '100465', description: 'Oats, Rolled, Quick Cooking', pack_size: '25 lb tube', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 0.55, yield_factor: 3.0 },
-            { wbscm_id: '105020', description: 'Rice, Brown, Long Grain', pack_size: '25 lb bag', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 0.75, yield_factor: 2.8 },
-          ],
-          dairy: [
-            { wbscm_id: '100300', description: 'Cheese, Cheddar, Shredded', pack_size: '4/5 lb bag', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 3.85, yield_factor: 1.0 },
-            { wbscm_id: '100301', description: 'Cheese, Mozzarella, Shredded', pack_size: '4/5 lb bag', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 3.75, yield_factor: 1.0 },
-            { wbscm_id: '100302', description: 'Cheese, American, Processed, Sliced', pack_size: '6/5 lb loaf', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 2.95, yield_factor: 1.0 },
-          ],
-          legumes: [
-            { wbscm_id: '110860', description: 'Black Beans, Canned, Low Sodium', pack_size: '6/#10 can', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 0.55, yield_factor: 1.0 },
-            { wbscm_id: '110861', description: 'Kidney Beans, Canned', pack_size: '6/#10 can', caf_recommended: true, processing_level: 'raw', est_cost_per_lb: 0.50, yield_factor: 1.0 },
-            { wbscm_id: '110862', description: 'Refried Beans, Canned, Vegetarian', pack_size: '6/#10 can', caf_recommended: false, processing_level: 'processed', est_cost_per_lb: 0.65, yield_factor: 1.0 },
-          ],
-        };
-        setCommodities(mockData[category] || mockData.beef);
+        console.error('Failed to fetch commodities from backend:', error);
+        setCommodities([]);
       }
       setLoading(false);
     }
@@ -189,29 +110,63 @@ export default function CategoryPage() {
     }
   }, [loading]);
 
-  // Cycle through placeholder messages while waiting for response
+  /**
+   * @brief Compute live allocation summary from current selections
+   * 
+   * @details Pure frontend calculation using servings_per_case from
+   * USDA Product Info Sheets. No API call needed.
+   */
+  const computeSummary = useCallback((): { items: AllocationSummaryItem[]; totalCost: number; totalServings: number } => {
+    const items: AllocationSummaryItem[] = [];
+    let totalCost = 0;
+    let totalServings = 0;
+
+    allocations.forEach((cases, wbscmId) => {
+      if (cases <= 0) return;
+      const commodity = commodities.find(c => c.wbscm_id === wbscmId);
+      if (!commodity) return;
+
+      const caseWeight = commodity.case_weight_lbs || 40;
+      const servingsPerCase = commodity.servings_per_case || 
+        Math.round((caseWeight * 16 * (commodity.yield_factor || 0.75)) / (commodity.serving_size_oz || 2.0));
+      const totalLbs = cases * caseWeight;
+      const cost = Math.round(totalLbs * commodity.est_cost_per_lb * 100) / 100;
+      const servings = cases * servingsPerCase;
+
+      items.push({
+        wbscmId,
+        description: commodity.description,
+        cases,
+        cost,
+        servings,
+        sourceUrl: commodity.source_url || null,
+      });
+
+      totalCost += cost;
+      totalServings += servings;
+    });
+
+    return { items, totalCost: Math.round(totalCost * 100) / 100, totalServings };
+  }, [allocations, commodities]);
+
+  // Save allocation to localStorage whenever it changes (live)
   useEffect(() => {
-    if (!calculating || isRealStatus) return;
+    if (commodities.length === 0) return;
+    const { items, totalCost, totalServings } = computeSummary();
 
-    const placeholders = [
-      '🔌 Connecting to Gemini...',
-      '📊 Preparing calculation...',
-      '🧮 Loading yield factors...',
-      '⚡ Initializing code execution...',
-      '🔢 Analyzing commodity data...',
-      '📈 Computing allocations...',
-    ];
-    
-    let index = 0;
-    setCalcStatus(placeholders[0]);
-    
-    const interval = setInterval(() => {
-      index = (index + 1) % placeholders.length;
-      setCalcStatus(placeholders[index]);
-    }, 1800);
-
-    return () => clearInterval(interval);
-  }, [calculating, isRealStatus]);
+    const savedAllocations = JSON.parse(localStorage.getItem('commodityAllocations') || '{}');
+    if (items.length > 0) {
+      savedAllocations[category] = {
+        category,
+        totalCost,
+        totalServings,
+        items: items.map(i => ({ wbscmId: i.wbscmId, cost: i.cost, servings: i.servings })),
+      };
+    } else {
+      delete savedAllocations[category];
+    }
+    localStorage.setItem('commodityAllocations', JSON.stringify(savedAllocations));
+  }, [allocations, commodities, category, computeSummary]);
 
   // Update allocation quantity
   const updateQuantity = (wbscmId: string, delta: number) => {
@@ -241,115 +196,13 @@ export default function CategoryPage() {
     });
   };
 
-  // Calculate allocation using Gemini streaming
-  const calculateAllocation = async () => {
-    if (allocations.size === 0) return;
-
-    setCalculating(true);
-    setIsRealStatus(false);
-    setCalcStatus('🔌 Connecting to Gemini...');
-    setCodeBlocks([]);
-    setCodeResults([]);
-    setGeminiText('');
-    setResults([]);
-
-    // Now sending quantity_cases instead of quantity_lbs
-    const items = Array.from(allocations.entries()).map(([wbscmId, qty]) => ({
-      wbscm_id: wbscmId,
-      quantity_cases: qty,  // Changed from quantity_lbs - backend now uses servings_per_case
-    }));
-
-    // Local variables to capture parsed values for saving
-    let parsedCost = 0;
-    let parsedServings = 0;
-    let parsedItems: CalculationResult[] = [];
-
-    const callbacks: StreamCallbacks = {
-      onText: (text) => {
-        setIsRealStatus(true);
-        setGeminiText((prev) => prev + text);
-        setCalcStatus('✨ Formatting response...');
-      },
-      onCode: (code) => {
-        setIsRealStatus(true);
-        setCodeBlocks((prev) => [...prev, code]);
-        setCalcStatus('⚡ Executing Python code...');
-      },
-      onResult: (result) => {
-        setIsRealStatus(true);
-        setCodeResults((prev) => [...prev, result.output]);
-        setCalcStatus('📊 Parsing calculation results...');
-        // Try to parse JSON from result
-        try {
-          const jsonMatch = result.output.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const data = JSON.parse(jsonMatch[0]);
-            if (data.items) {
-              parsedItems = data.items;
-              setResults(data.items);
-            }
-            if (data.total_cost) {
-              parsedCost = data.total_cost;
-              setTotalCost(data.total_cost);
-            }
-            if (data.total_servings) {
-              parsedServings = data.total_servings;
-              setTotalServings(data.total_servings);
-            }
-          }
-        } catch {
-          // Not JSON, that's fine
-        }
-      },
-      onDone: () => {
-        setCalcStatus('✅ Complete!');
-        // Save allocation to localStorage for the entitlement tracker
-        setTimeout(() => {
-          const savedAllocations = JSON.parse(localStorage.getItem('commodityAllocations') || '{}');
-          savedAllocations[category] = {
-            category,
-            totalCost: parsedCost,
-            totalServings: parsedServings,
-            items: parsedItems.map(r => ({ wbscmId: r.wbscm_id, cost: r.cost, servings: r.servings })),
-          };
-          localStorage.setItem('commodityAllocations', JSON.stringify(savedAllocations));
-          console.log('💾 Saved allocation:', savedAllocations[category]);
-          
-          setCalculating(false);
-          setCalcStatus('');
-        }, 500);
-      },
-      onError: (error) => {
-        console.error('Calculation error:', error);
-        setCalcStatus('Error occurred');
-        setTimeout(() => {
-          setCalculating(false);
-          setCalcStatus('');
-        }, 1000);
-      },
-    };
-
-    try {
-      await streamAllocate(
-        {
-          commodity_type: category,
-          items,
-          oz_per_serving: 2.0,
-          annual_meals: 3600000,
-        },
-        callbacks
-      );
-    } catch (error) {
-      console.error('Stream error:', error);
-      setCalculating(false);
-    }
-  };
-
   // Separate commodities into recommended and processed
   const recommended = commodities.filter((c) => c.caf_recommended);
   const processed = commodities.filter((c) => !c.caf_recommended);
-
   const meta = categoryMeta[category] || { name: category, emoji: '📦' };
+
+  // Live summary
+  const summary = computeSummary();
 
   if (loading) {
     return (
@@ -374,7 +227,7 @@ export default function CategoryPage() {
         background: 'linear-gradient(135deg, rgba(232,245,233,0.9) 0%, rgba(200,230,201,0.6) 50%, rgba(165,214,167,0.4) 100%)',
         position: 'relative',
         overflow: 'hidden',
-        pb: 12,
+        pb: 6,
       }}
     >
       {/* Background shapes */}
@@ -407,24 +260,20 @@ export default function CategoryPage() {
           >
             {meta.name} Selection
           </Typography>
+          <Chip
+            size="small"
+            label={`${commodities.length} products`}
+            sx={{ bgcolor: 'rgba(76, 175, 80, 0.1)', color: 'rgba(76, 175, 80, 0.8)', fontWeight: 500 }}
+          />
           <Button
             variant="outlined"
             size="small"
             startIcon={<AutoFixHighIcon />}
             onClick={() => {
-              // Set example allocations based on category - now in CASES
-              const exampleData: Record<string, Map<string, number>> = {
-                beef: new Map([['100158', 75], ['110349', 25]]),      // 75 cases, 25 cases
-                poultry: new Map([['111361', 125], ['100101', 50]]),  // 125 cases, 50 cases
-                pork: new Map([['100200', 40], ['100201', 25]]),      // 40 cases, 25 cases
-                fish: new Map([['110500', 80], ['110501', 40]]),      // 80 cases, 40 cases
-                vegetables: new Map([['110473', 35], ['110480', 25], ['110562', 20]]),
-                fruits: new Map([['100517', 30], ['100243', 15]]),
-                grains: new Map([['105012', 25], ['100465', 12]]),
-                dairy: new Map([['100300', 30], ['100301', 20]]),
-                legumes: new Map([['110860', 20], ['110861', 15]]),
-              };
-              const example = exampleData[category] || new Map([['100158', 75]]);
+              // Set example allocations using first few commodities
+              const example = new Map<string, number>();
+              if (recommended.length > 0) example.set(recommended[0].wbscm_id, 2);
+              if (recommended.length > 1) example.set(recommended[1].wbscm_id, 1);
               setAllocations(example);
             }}
             sx={{
@@ -499,8 +348,8 @@ export default function CategoryPage() {
           </Box>
         </Box>
 
-        {/* Results Section */}
-        {(results.length > 0 || totalCost > 0) && (
+        {/* Live Allocation Summary — always visible when items are selected */}
+        {summary.items.length > 0 && (
           <Card
             sx={{
               mt: 4,
@@ -511,25 +360,29 @@ export default function CategoryPage() {
               border: '2px solid rgba(76, 175, 80, 0.3)',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                Allocation Summary
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<CodeIcon />}
-                onClick={() => setDrawerOpen(true)}
-                sx={{ color: 'rgba(76, 175, 80, 0.8)' }}
-              >
-                See Calculation
-              </Button>
-            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 500, mb: 2 }}>
+              Allocation Summary
+            </Typography>
             <Divider sx={{ mb: 2 }} />
-            {results.map((item) => (
-              <Box key={item.wbscm_id} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  {item.description}
-                </Typography>
+            {summary.items.map((item) => (
+              <Box key={item.wbscmId} sx={{ mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
+                    {item.description}
+                  </Typography>
+                  {item.sourceUrl && (
+                    <Tooltip title="View USDA Product Info Sheet">
+                      <Link
+                        href={item.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ display: 'flex', alignItems: 'center', color: 'rgba(76, 175, 80, 0.7)' }}
+                      >
+                        <OpenInNewIcon sx={{ fontSize: 14 }} />
+                      </Link>
+                    </Tooltip>
+                  )}
+                </Box>
                 <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                   <Chip
                     size="small"
@@ -550,210 +403,64 @@ export default function CategoryPage() {
               </Box>
             ))}
             <Divider sx={{ my: 2 }} />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6" sx={{ color: 'rgba(76, 175, 80, 0.9)' }}>
-                Total: ${totalCost.toLocaleString()}
+                Total: ${summary.totalCost.toLocaleString()}
               </Typography>
               <Typography variant="body1">
-                {totalServings.toLocaleString()} servings
+                {summary.totalServings.toLocaleString()} servings
               </Typography>
+            </Box>
+
+            {/* Sources */}
+            <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(97, 97, 97, 0.6)' }}>
+                📚 Servings from{' '}
+                <Link
+                  href="https://www.fns.usda.gov/usda-fis/product-information-sheets"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ color: 'rgba(76, 175, 80, 0.7)' }}
+                >
+                  USDA Product Info Sheets
+                </Link>
+                {' · '}Costs from USDA Foods Available List SY26-27
+              </Typography>
+            </Box>
+
+            {/* Save & Continue Button */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+              <Button
+                variant="contained"
+                onClick={() => router.push('/planner')}
+                sx={{
+                  px: 3,
+                  fontFamily: '"Google Sans", sans-serif',
+                  background: 'linear-gradient(135deg, rgba(102,187,106,0.95) 0%, rgba(129,199,132,0.9) 100%)',
+                  boxShadow: '0 4px 16px rgba(76, 175, 80, 0.25)',
+                  '&:hover': {
+                    boxShadow: '0 6px 20px rgba(76, 175, 80, 0.35)',
+                  },
+                }}
+              >
+                ✓ Save & Return to Planner
+              </Button>
             </Box>
           </Card>
         )}
       </Container>
-
-      {/* Calculate Button - Fixed at bottom */}
-      {allocations.size > 0 && (
-        <Box
-          sx={{
-            position: 'fixed',
-            bottom: 24,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 100,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 1,
-          }}
-        >
-          {calculating && calcStatus && (
-            <Box
-              key={calcStatus}
-              sx={{
-                px: 3,
-                py: 1.5,
-                borderRadius: 3,
-                backdropFilter: 'blur(20px)',
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-                animation: 'statusFade 0.4s ease-out',
-                '@keyframes statusFade': {
-                  '0%': { opacity: 0, transform: 'translateY(8px) scale(0.95)' },
-                  '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
-                },
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'rgba(46, 125, 50, 0.95)',
-                  fontFamily: '"Google Sans", sans-serif',
-                  fontWeight: 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  fontSize: '0.95rem',
-                }}
-              >
-                <Box
-                  component="span"
-                  sx={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    bgcolor: 'rgba(76, 175, 80, 0.9)',
-                    boxShadow: '0 0 8px rgba(76, 175, 80, 0.5)',
-                    animation: 'pulseGlow 1.2s ease-in-out infinite',
-                    '@keyframes pulseGlow': {
-                      '0%, 100%': { opacity: 0.5, transform: 'scale(0.9)' },
-                      '50%': { opacity: 1, transform: 'scale(1.1)' },
-                    },
-                  }}
-                />
-                {calcStatus}
-              </Typography>
-            </Box>
-          )}
-          <Button
-            variant="contained"
-            size="large"
-            onClick={calculateAllocation}
-            disabled={calculating}
-            sx={{
-              px: 4,
-              py: 1.5,
-              minWidth: 200,
-              fontFamily: '"Google Sans", sans-serif',
-              background: calculating
-                ? 'linear-gradient(135deg, rgba(102,187,106,0.7) 0%, rgba(129,199,132,0.7) 100%)'
-                : 'linear-gradient(135deg, rgba(102,187,106,0.95) 0%, rgba(129,199,132,0.9) 100%)',
-              boxShadow: '0 8px 32px rgba(76, 175, 80, 0.35)',
-              '&:hover': {
-                boxShadow: '0 12px 40px rgba(76, 175, 80, 0.45)',
-              },
-            }}
-          >
-            {calculating ? (
-              <>
-                <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
-                Working...
-              </>
-            ) : (
-              `Calculate ${allocations.size} Item${allocations.size > 1 ? 's' : ''}`
-            )}
-          </Button>
-        </Box>
-      )}
-
-      {/* Calculation Drawer */}
-      <Drawer
-        anchor="right"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: { xs: '100%', sm: 450 },
-            p: 3,
-            bgcolor: 'rgba(250, 250, 250, 0.98)',
-          },
-        }}
-      >
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 500 }}>
-          📊 Calculation Details
-        </Typography>
-        
-        {codeBlocks.length > 0 && (
-          <>
-            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-              Python Code Executed:
-            </Typography>
-            {codeBlocks.map((code, idx) => (
-              <Box
-                key={idx}
-                sx={{
-                  bgcolor: 'rgba(0, 0, 0, 0.04)',
-                  p: 2,
-                  borderRadius: 2,
-                  mb: 2,
-                  fontFamily: 'monospace',
-                  fontSize: '0.75rem',
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                  overflowX: 'auto',
-                  minHeight: 200,
-                  maxHeight: 400,
-                  overflowY: 'auto',
-                }}
-              >
-                {code}
-              </Box>
-            ))}
-          </>
-        )}
-
-        {codeResults.length > 0 && (
-          <>
-            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-              Output:
-            </Typography>
-            {codeResults.map((result, idx) => (
-              <Box
-                key={idx}
-                sx={{
-                  bgcolor: 'rgba(76, 175, 80, 0.08)',
-                  p: 2,
-                  borderRadius: 2,
-                  mb: 2,
-                  fontFamily: 'monospace',
-                  fontSize: '0.8rem',
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {result}
-              </Box>
-            ))}
-          </>
-        )}
-
-        <Divider sx={{ my: 2 }} />
-        
-        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-          📚 Sources:
-        </Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Chip
-            size="small"
-            label="Yield Factors: Food Buying Guide (USDA FNS, 2026)"
-            sx={{ justifyContent: 'flex-start' }}
-          />
-          <Chip
-            size="small"
-            label="Costs: USDA Foods Available List SY26-27"
-            sx={{ justifyContent: 'flex-start' }}
-          />
-          <Chip
-            size="small"
-            label="Serving Size: 2 oz M/MA per USDA Meal Patterns"
-            sx={{ justifyContent: 'flex-start' }}
-          />
-        </Box>
-      </Drawer>
     </Box>
   );
 }
 
-// Commodity Card Component
+/**
+ * @brief Commodity card component with case-based quantity selection
+ * 
+ * @details Displays product info from USDA Product Info Sheets including
+ * servings_per_case (yield baked in), serving_size_oz, and source_url.
+ * All serving calculations use servings_per_case directly — no separate
+ * yield factor computation needed.
+ */
 function CommodityCard({
   commodity,
   quantity,
@@ -767,13 +474,15 @@ function CommodityCard({
   onSetQuantity: (val: number) => void;
   isRecommended: boolean;
 }) {
-  // Calculate case-based values
-  const caseWeight = commodity.case_weight_lbs || 40; // Default 40 lb case
-  const servingsPerCase = commodity.servings_per_case || Math.round(caseWeight * 16 / 2); // Estimate if not available
+  const caseWeight = commodity.case_weight_lbs || 40;
   const servingSizeOz = commodity.serving_size_oz || 2.0;
+  // Use servings_per_case from USDA Product Info Sheet (yield already baked in)
+  // Fallback: compute from case weight, yield factor, and serving size
+  const servingsPerCase = commodity.servings_per_case || 
+    Math.round((caseWeight * 16 * (commodity.yield_factor || 0.75)) / servingSizeOz);
   const cnCredit = commodity.cn_credit_oz || 2.0;
   
-  // Build tooltip content for case info
+  // Build tooltip
   const caseInfoTooltip = (
     <Box sx={{ p: 1 }}>
       <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
@@ -783,26 +492,28 @@ function CommodityCard({
         • {caseWeight} lbs/case
       </Typography>
       <Typography variant="caption" sx={{ display: 'block' }}>
-        • {servingsPerCase.toLocaleString()} servings/case
+        • {servingsPerCase.toLocaleString()} servings/case ({servingSizeOz} oz each)
       </Typography>
       <Typography variant="caption" sx={{ display: 'block' }}>
-        • {servingSizeOz} oz/serving
+        • CN Credit: {cnCredit} oz eq {commodity.cn_credit_category || ''}
       </Typography>
-      <Typography variant="caption" sx={{ display: 'block' }}>
-        • CN Credit: {cnCredit} oz eq
-      </Typography>
-      {commodity.source_url && (
-        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'primary.light' }}>
-          📄 USDA Product Info Sheet
+      {commodity.calories_per_serving && (
+        <Typography variant="caption" sx={{ display: 'block' }}>
+          • {commodity.calories_per_serving} cal, {commodity.protein_per_serving}g protein/srv
+        </Typography>
+      )}
+      {commodity.notes && (
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, fontStyle: 'italic', maxWidth: 280 }}>
+          {commodity.notes}
         </Typography>
       )}
     </Box>
   );
 
-  // Calculate total servings and cost based on cases
+  // Real-time calculations
   const totalServings = quantity * servingsPerCase;
   const totalLbs = quantity * caseWeight;
-  const estimatedCost = totalLbs * commodity.est_cost_per_lb;
+  const estimatedCost = Math.round(totalLbs * commodity.est_cost_per_lb * 100) / 100;
 
   return (
     <Card
@@ -825,11 +536,25 @@ function CommodityCard({
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box sx={{ flex: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-            {commodity.description}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              {commodity.description}
+            </Typography>
+            {commodity.source_url && (
+              <Tooltip title="View USDA Product Info Sheet">
+                <Link
+                  href={commodity.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ display: 'flex', alignItems: 'center', color: 'rgba(76, 175, 80, 0.5)', '&:hover': { color: 'rgba(76, 175, 80, 0.9)' } }}
+                >
+                  <OpenInNewIcon sx={{ fontSize: 13 }} />
+                </Link>
+              </Tooltip>
+            )}
+          </Box>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            WBSCM: {commodity.wbscm_id} | {commodity.pack_size_description || commodity.pack_size}
+            WBSCM: {commodity.wbscm_id} | {commodity.pack_size_description || commodity.pack_size || `${caseWeight} lb case`}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
             <Tooltip title={caseInfoTooltip}>
@@ -845,17 +570,17 @@ function CommodityCard({
               label={`${servingsPerCase.toLocaleString()} srv/case`}
               sx={{ fontSize: '0.7rem', height: 22, bgcolor: 'rgba(255, 152, 0, 0.1)' }}
             />
-            <Tooltip title={`Yield: ${(commodity.yield_factor * 100).toFixed(0)}% - from Food Buying Guide`}>
+            {commodity.serving_size_oz && (
               <Chip
                 size="small"
-                label={`Yield: ${(commodity.yield_factor * 100).toFixed(0)}%`}
+                label={`${commodity.serving_size_oz} oz/srv`}
                 sx={{ fontSize: '0.7rem', height: 22 }}
               />
-            </Tooltip>
+            )}
           </Box>
         </Box>
 
-        {/* Quantity Controls - Now in CASES */}
+        {/* Quantity Controls - in CASES */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton
             size="small"
@@ -888,6 +613,7 @@ function CommodityCard({
         </Box>
       </Box>
 
+      {/* Live calculation display when cases > 0 */}
       {quantity > 0 && (
         <Box
           sx={{
@@ -904,8 +630,8 @@ function CommodityCard({
               ${estimatedCost.toLocaleString()}
             </Typography>
           </Box>
-          <Typography variant="caption" sx={{ color: 'rgba(255, 152, 0, 0.9)' }}>
-            ≈ {totalServings.toLocaleString()} servings
+          <Typography variant="body2" sx={{ color: 'rgba(255, 152, 0, 0.9)', fontWeight: 500 }}>
+            {totalServings.toLocaleString()} servings
           </Typography>
         </Box>
       )}
