@@ -3,7 +3,7 @@
  * @brief Category detail page for commodity selection
  * 
  * @details Displays available commodities in two columns:
- * - Values-Aligned (recommended, whole/raw)
+ * - Scratch-Cooking Focused (recommended, whole/raw)
  * - Processed (with soy, pre-cooked)
  * 
  * Uses streaming Gemini API for real-time calculations
@@ -453,7 +453,7 @@ export default function CategoryPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <CheckCircleOutlineIcon sx={{ color: 'rgba(76, 175, 80, 0.8)' }} />
               <Typography variant="h6" sx={{ color: 'rgba(76, 175, 80, 0.9)', fontWeight: 500 }}>
-                Values-Aligned (Recommended)
+                Scratch-Cooking Focused (Recommended)
               </Typography>
             </Box>
             {recommended.map((commodity) => (
@@ -468,7 +468,7 @@ export default function CategoryPage() {
             ))}
             {recommended.length === 0 && (
               <Typography sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-                No values-aligned options in this category
+                No scratch-cooking focused options in this category
               </Typography>
             )}
           </Box>

@@ -149,7 +149,7 @@ export default function ValuesNudgeDialog({
             <SwapHorizIcon sx={{ color: 'rgba(76, 175, 80, 0.5)', fontSize: 32 }} />
           </Box>
 
-          {/* Alternative (Values-Aligned) */}
+          {/* Alternative (Scratch-Cooking Focused) */}
           <Box
             sx={{
               p: 2,
@@ -161,7 +161,7 @@ export default function ValuesNudgeDialog({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <CheckCircleOutlineIcon sx={{ color: 'rgba(76, 175, 80, 0.8)', fontSize: 18 }} />
               <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(76, 175, 80, 0.9)' }}>
-                VALUES-ALIGNED
+                SCRATCH-COOKING FOCUSED
               </Typography>
             </Box>
             <Typography variant="body2" sx={{ fontWeight: 500, mb: 2, minHeight: 40 }}>
@@ -194,7 +194,7 @@ export default function ValuesNudgeDialog({
         <Divider sx={{ my: 3 }} />
         <Box sx={{ bgcolor: 'rgba(76, 175, 80, 0.05)', p: 2, borderRadius: 2 }}>
           <Typography variant="subtitle2" sx={{ mb: 1, color: 'rgba(76, 175, 80, 0.9)' }}>
-            Why Choose Values-Aligned?
+            Why Choose Scratch-Cooking Focused?
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
             • Higher protein quality with no fillers or additives<br />
@@ -220,7 +220,7 @@ export default function ValuesNudgeDialog({
             background: 'linear-gradient(135deg, rgba(102,187,106,0.95) 0%, rgba(129,199,132,0.9) 100%)',
           }}
         >
-          Switch to Values-Aligned
+          Switch to Scratch-Cooking Focused
         </Button>
       </DialogActions>
     </Dialog>
