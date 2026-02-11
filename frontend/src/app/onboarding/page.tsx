@@ -64,11 +64,7 @@ interface DistrictProfile {
   gradeLevels: string[];
   enrollmentByGrade: Record<string, number>;
   servingDays: number;
-  participationRates: {
-    free: number;
-    reduced: number;
-    paid: number;
-  };
+  participationRate: number;
   demographics: {
     freeRate: number;
     reducedRate: number;
@@ -85,13 +81,6 @@ interface DistrictProfile {
   allergens: string[];
 }
 
-// Industry standard default participation rates
-const DEFAULT_PARTICIPATION_RATES = {
-  free: 80,      // 80% of free-eligible students participate
-  reduced: 70,   // 70% of reduced-eligible students participate
-  paid: 40,      // 40% of paid students participate
-};
-
 // Default demographics (can be customized)
 const DEFAULT_DEMOGRAPHICS = {
   freeRate: 85,     // 85% of students are free-eligible
@@ -105,12 +94,12 @@ const exampleData: DistrictProfile = {
   gradeLevels: ['prek', 'elementary', 'middle', 'high'],
   enrollmentByGrade: { prek: 625, elementary: 15000, middle: 5625, high: 3750 },
   servingDays: 180,
-  participationRates: { free: 80, reduced: 70, paid: 40 },
+  participationRate: 75,
   demographics: { freeRate: 85, reducedRate: 5, paidRate: 10 },
-  adpByGrade: { prek: 500, elementary: 12000, middle: 4500, high: 3000 },
+  adpByGrade: { prek: 469, elementary: 11250, middle: 4219, high: 2813 },
   totalEnrollment: 25000,
-  totalAdp: 20000,
-  totalAnnualMeals: 3600000,
+  totalAdp: 18750,
+  totalAnnualMeals: 3375000,
   sites: '45 sites (5 production, 40 satellite)',
   foodCostPercentage: '48',
   equipment: ['combi', 'kettle', 'convection'],
@@ -128,7 +117,7 @@ export default function OnboardingPage() {
     gradeLevels: [],
     enrollmentByGrade: {},
     servingDays: 180,
-    participationRates: { ...DEFAULT_PARTICIPATION_RATES },
+    participationRate: 75,
     demographics: { ...DEFAULT_DEMOGRAPHICS },
     adpByGrade: {},
     totalEnrollment: 0,
@@ -142,13 +131,10 @@ export default function OnboardingPage() {
 
   // Calculate ADP and Annual Meals when inputs change
   useEffect(() => {
-    const { enrollmentByGrade, servingDays, participationRates, demographics } = profile;
+    const { enrollmentByGrade, servingDays, participationRate } = profile;
     
-    // Calculate weighted participation rate
-    const weightedParticipation = 
-      (demographics.freeRate / 100) * (participationRates.free / 100) +
-      (demographics.reducedRate / 100) * (participationRates.reduced / 100) +
-      (demographics.paidRate / 100) * (participationRates.paid / 100);
+    // Simple participation calculation: ADP = enrollment × participationRate
+    const participationDecimal = participationRate / 100;
     
     // Calculate ADP for each grade
     const newAdpByGrade: Record<string, number> = {};
@@ -156,7 +142,7 @@ export default function OnboardingPage() {
     let totalAdp = 0;
     
     Object.entries(enrollmentByGrade).forEach(([grade, enrollment]) => {
-      const adp = Math.round(enrollment * weightedParticipation);
+      const adp = Math.round(enrollment * participationDecimal);
       newAdpByGrade[grade] = adp;
       totalEnroll += enrollment;
       totalAdp += adp;
@@ -182,8 +168,7 @@ export default function OnboardingPage() {
   }, [
     profile.enrollmentByGrade, 
     profile.servingDays, 
-    profile.participationRates, 
-    profile.demographics,
+    profile.participationRate,
     profile.adpByGrade,
     profile.totalEnrollment,
     profile.totalAdp,
@@ -317,12 +302,6 @@ export default function OnboardingPage() {
         );
 
       case 1: {
-        // Calculate weighted participation for display
-        const weightedParticipation = 
-          (profile.demographics.freeRate / 100) * (profile.participationRates.free / 100) +
-          (profile.demographics.reducedRate / 100) * (profile.participationRates.reduced / 100) +
-          (profile.demographics.paidRate / 100) * (profile.participationRates.paid / 100);
-        
         return (
           <Box>
             <Typography
@@ -475,60 +454,26 @@ export default function OnboardingPage() {
                   />
                 </Box>
 
-                {/* Participation Rates */}
-                <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                  Participation rates by eligibility (%):
-                </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, mb: 3 }}>
-                  <TextField
-                    size="small"
-                    label="Free"
-                    type="number"
-                    value={profile.participationRates.free}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        participationRates: {
-                          ...profile.participationRates,
-                          free: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
-                        },
-                      })
-                    }
-                    InputProps={{ inputProps: { min: 0, max: 100 } }}
-                  />
-                  <TextField
-                    size="small"
-                    label="Reduced"
-                    type="number"
-                    value={profile.participationRates.reduced}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        participationRates: {
-                          ...profile.participationRates,
-                          reduced: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
-                        },
-                      })
-                    }
-                    InputProps={{ inputProps: { min: 0, max: 100 } }}
-                  />
-                  <TextField
-                    size="small"
-                    label="Paid"
-                    type="number"
-                    value={profile.participationRates.paid}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        participationRates: {
-                          ...profile.participationRates,
-                          paid: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
-                        },
-                      })
-                    }
-                    InputProps={{ inputProps: { min: 0, max: 100 } }}
-                  />
-                </Box>
+                {/* Average Daily Participation Rate */}
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Average Daily Participation Rate (%)"
+                  type="number"
+                  value={profile.participationRate}
+                  onChange={(e) =>
+                    setProfile({
+                      ...profile,
+                      participationRate: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
+                    })
+                  }
+                  helperText="What percentage of enrolled students typically eat lunch? Industry average: 70-80%"
+                  sx={{ mb: 3 }}
+                  InputProps={{
+                    inputProps: { min: 0, max: 100 },
+                    endAdornment: <Typography sx={{ color: 'text.secondary' }}>%</Typography>,
+                  }}
+                />
 
                 {/* Calculation Summary */}
                 {profile.totalEnrollment > 0 && (
@@ -553,10 +498,10 @@ export default function OnboardingPage() {
                       </Typography>
                       
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        Weighted Participation:
+                        Participation Rate:
                       </Typography>
                       <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
-                        {(weightedParticipation * 100).toFixed(1)}%
+                        {profile.participationRate}%
                       </Typography>
                       
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>

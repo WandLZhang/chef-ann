@@ -12,38 +12,33 @@
       "high": 3750
     },
     "serving_days": 180,
+    "participation_rate": 0.75,
+    "_participation_rate_note": "Average daily participation rate. Industry average: 70-80%",
     "demographics": {
       "free_rate": 0.85,
       "reduced_rate": 0.05,
       "paid_rate": 0.10
-    },
-    "participation_rates": {
-      "free": 0.80,
-      "reduced": 0.70,
-      "paid": 0.40,
-      "_note": "Industry standard participation rates by eligibility category"
     }
   },
 
   "_calculation_formula": {
-    "weighted_participation": "(free_rate × free_participation) + (reduced_rate × reduced_participation) + (paid_rate × paid_participation)",
-    "weighted_participation_result": 0.755,
-    "adp_formula": "enrollment × weighted_participation",
+    "adp_formula": "enrollment × participation_rate",
+    "participation_rate": 0.75,
     "annual_meals_formula": "total_adp × serving_days"
   },
 
   "adp": {
-    "pre_k": 472,
-    "elementary": 11325,
-    "middle": 4247,
-    "high": 2831,
-    "_note": "Calculated: enrollment × 0.755 weighted participation"
+    "pre_k": 469,
+    "elementary": 11250,
+    "middle": 4219,
+    "high": 2813,
+    "_note": "Calculated: enrollment × 0.75 participation rate"
   },
   
   "total_enrollment": 25000,
-  "total_adp": 18875,
-  "total_annual_meals": 3397500,
-  "_annual_meals_calculation": "18,875 ADP × 180 serving days = 3,397,500 annual meals",
+  "total_adp": 18750,
+  "total_annual_meals": 3375000,
+  "_annual_meals_calculation": "18,750 ADP × 180 serving days = 3,375,000 annual meals",
 
   "demographics": {
     "free_rate": 0.85,
