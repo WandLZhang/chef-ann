@@ -41,6 +41,9 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { getCommodities, type Commodity } from '@/lib/api';
 
 /** Summary for a single allocated item */
@@ -76,6 +79,7 @@ export default function CategoryPage() {
   const [commodities, setCommodities] = useState<Commodity[]>([]);
   const [allocations, setAllocations] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   // Fetch commodities from backend (serves from comprehensive JSON)
   useEffect(() => {
@@ -227,7 +231,8 @@ export default function CategoryPage() {
         background: 'linear-gradient(135deg, rgba(232,245,233,0.9) 0%, rgba(200,230,201,0.6) 50%, rgba(165,214,167,0.4) 100%)',
         position: 'relative',
         overflow: 'hidden',
-        pb: 6,
+        // Extra padding when floating bar is visible
+        pb: summary.items.length > 0 ? (detailsExpanded ? 50 : 14) : 6,
       }}
     >
       {/* Background shapes */}
@@ -348,107 +353,145 @@ export default function CategoryPage() {
           </Box>
         </Box>
 
-        {/* Live Allocation Summary — always visible when items are selected */}
-        {summary.items.length > 0 && (
-          <Card
-            sx={{
-              mt: 4,
-              p: 3,
-              backdropFilter: 'blur(24px)',
-              backgroundColor: 'rgba(255, 255, 255, 0.85)',
-              borderRadius: 3,
-              border: '2px solid rgba(76, 175, 80, 0.3)',
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 500, mb: 2 }}>
-              Allocation Summary
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            {summary.items.map((item) => (
-              <Box key={item.wbscmId} sx={{ mb: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
-                    {item.description}
-                  </Typography>
-                  {item.sourceUrl && (
-                    <Tooltip title="View USDA Product Info Sheet">
-                      <Link
-                        href={item.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{ display: 'flex', alignItems: 'center', color: 'rgba(76, 175, 80, 0.7)' }}
-                      >
-                        <OpenInNewIcon sx={{ fontSize: 14 }} />
-                      </Link>
-                    </Tooltip>
-                  )}
-                </Box>
-                <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
-                  <Chip
-                    size="small"
-                    label={`${item.cases} cases`}
-                    sx={{ bgcolor: 'rgba(76, 175, 80, 0.1)' }}
-                  />
-                  <Chip
-                    size="small"
-                    label={`$${item.cost.toLocaleString()}`}
-                    sx={{ bgcolor: 'rgba(33, 150, 243, 0.1)' }}
-                  />
-                  <Chip
-                    size="small"
-                    label={`${item.servings.toLocaleString()} servings`}
-                    sx={{ bgcolor: 'rgba(255, 152, 0, 0.1)' }}
-                  />
-                </Box>
-              </Box>
-            ))}
-            <Divider sx={{ my: 2 }} />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ color: 'rgba(76, 175, 80, 0.9)' }}>
-                Total: ${summary.totalCost.toLocaleString()}
-              </Typography>
-              <Typography variant="body1">
-                {summary.totalServings.toLocaleString()} servings
-              </Typography>
-            </Box>
+      </Container>
 
-            {/* Sources */}
-            <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-              <Typography variant="caption" sx={{ color: 'rgba(97, 97, 97, 0.6)' }}>
+      {/* Floating Allocation Summary Bar — fixed at bottom of screen */}
+      {summary.items.length > 0 && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            backdropFilter: 'blur(24px)',
+            backgroundColor: 'rgba(255, 255, 255, 0.92)',
+            borderTop: '2px solid rgba(76, 175, 80, 0.3)',
+            boxShadow: '0 -8px 32px rgba(0,0,0,0.1)',
+            transition: 'all 0.3s ease',
+          }}
+        >
+          {/* Expanded Details Panel */}
+          {detailsExpanded && (
+            <Box
+              sx={{
+                maxHeight: '40vh',
+                overflowY: 'auto',
+                px: { xs: 2, md: 4 },
+                pt: 2,
+                pb: 1,
+              }}
+            >
+              {summary.items.map((item) => (
+                <Box key={item.wbscmId} sx={{ mb: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
+                      {item.description}
+                    </Typography>
+                    {item.sourceUrl && (
+                      <Tooltip title="View USDA Product Info Sheet">
+                        <Link
+                          href={item.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{ display: 'flex', alignItems: 'center', color: 'rgba(76, 175, 80, 0.7)' }}
+                        >
+                          <OpenInNewIcon sx={{ fontSize: 14 }} />
+                        </Link>
+                      </Tooltip>
+                    )}
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5 }}>
+                    <Chip size="small" label={`${item.cases} cases`} sx={{ bgcolor: 'rgba(76, 175, 80, 0.1)', fontSize: '0.7rem', height: 22 }} />
+                    <Chip size="small" label={`$${item.cost.toLocaleString()}`} sx={{ bgcolor: 'rgba(33, 150, 243, 0.1)', fontSize: '0.7rem', height: 22 }} />
+                    <Chip size="small" label={`${item.servings.toLocaleString()} srv`} sx={{ bgcolor: 'rgba(255, 152, 0, 0.1)', fontSize: '0.7rem', height: 22 }} />
+                  </Box>
+                </Box>
+              ))}
+              {/* Sources */}
+              <Typography variant="caption" sx={{ color: 'rgba(97, 97, 97, 0.5)', display: 'block', mt: 1 }}>
                 📚 Servings from{' '}
-                <Link
-                  href="https://www.fns.usda.gov/usda-fis/product-information-sheets"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ color: 'rgba(76, 175, 80, 0.7)' }}
-                >
+                <Link href="https://www.fns.usda.gov/usda-fis/product-information-sheets" target="_blank" rel="noopener noreferrer" sx={{ color: 'rgba(76, 175, 80, 0.6)' }}>
                   USDA Product Info Sheets
                 </Link>
-                {' · '}Costs from USDA Foods Available List SY26-27
+                {' · '}Costs from USDA FAL SY26-27
+              </Typography>
+              <Divider sx={{ mt: 1.5 }} />
+            </Box>
+          )}
+
+          {/* Compact Summary Bar — always visible */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              px: { xs: 2, md: 4 },
+              py: 1.5,
+              gap: 2,
+            }}
+          >
+            {/* Cart icon + item count */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ShoppingCartIcon sx={{ fontSize: 20, color: 'rgba(76, 175, 80, 0.7)' }} />
+              <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(33, 33, 33, 0.8)' }}>
+                {summary.items.length} item{summary.items.length > 1 ? 's' : ''}
               </Typography>
             </Box>
 
-            {/* Save & Continue Button */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-              <Button
-                variant="contained"
-                onClick={() => router.push('/planner')}
-                sx={{
-                  px: 3,
-                  fontFamily: '"Google Sans", sans-serif',
-                  background: 'linear-gradient(135deg, rgba(102,187,106,0.95) 0%, rgba(129,199,132,0.9) 100%)',
-                  boxShadow: '0 4px 16px rgba(76, 175, 80, 0.25)',
-                  '&:hover': {
-                    boxShadow: '0 6px 20px rgba(76, 175, 80, 0.35)',
-                  },
-                }}
-              >
-                ✓ Save & Return to Planner
-              </Button>
-            </Box>
-          </Card>
-        )}
-      </Container>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+            {/* Total cost */}
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(76, 175, 80, 0.9)', fontFamily: '"Google Sans", sans-serif' }}>
+              ${summary.totalCost.toLocaleString()}
+            </Typography>
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+            {/* Total servings */}
+            <Typography variant="body2" sx={{ color: 'rgba(255, 152, 0, 0.9)', fontWeight: 500 }}>
+              {summary.totalServings.toLocaleString()} servings
+            </Typography>
+
+            {/* Spacer */}
+            <Box sx={{ flex: 1 }} />
+
+            {/* Expand/Collapse Details */}
+            <Button
+              size="small"
+              onClick={() => setDetailsExpanded(!detailsExpanded)}
+              endIcon={detailsExpanded ? <KeyboardArrowDownIcon /> : <KeyboardArrowUpIcon />}
+              sx={{
+                color: 'rgba(76, 175, 80, 0.8)',
+                textTransform: 'none',
+                fontWeight: 500,
+                minWidth: 'auto',
+              }}
+            >
+              {detailsExpanded ? 'Hide' : 'Details'}
+            </Button>
+
+            {/* Save & Return */}
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => router.push('/planner')}
+              sx={{
+                px: 2.5,
+                fontFamily: '"Google Sans", sans-serif',
+                textTransform: 'none',
+                fontWeight: 600,
+                background: 'linear-gradient(135deg, rgba(102,187,106,0.95) 0%, rgba(129,199,132,0.9) 100%)',
+                boxShadow: '0 4px 16px rgba(76, 175, 80, 0.25)',
+                '&:hover': {
+                  boxShadow: '0 6px 20px rgba(76, 175, 80, 0.35)',
+                },
+              }}
+            >
+              ✓ Save & Return
+            </Button>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }
