@@ -89,6 +89,7 @@ CATEGORY_MAP = {
     'grains': ['grains'],
     'dairy': ['dairy', 'cheese', 'eggs'],  # Merge yogurts + cheeses + eggs
     'legumes': ['beans'],
+    'other': ['other'],
 }
 
 # Default cost estimates by category ($/lb, used when no legacy match exists)

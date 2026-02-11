@@ -1379,13 +1379,11 @@
         "processing_level": "raw",
         "notes": "One case of raw, unpeeled apples provides about 296 \u00bd- cup servings. CN Crediting: \u00bd cup apples credit as \u00bd cup fruit.",
         "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/111895-Apples-Honeycrisp-Fresh.pdf"
-      }
-    ],
-    "vegetables": [
+      },
       {
         "wbscm_id": "100219",
         "description": "Peaches, Sliced, Extra Light Syrup, Canned",
-        "category": "vegetables",
+        "category": "fruits",
         "case_weight_lbs": null,
         "pack_size_description": "cases containing six #10 cans",
         "servings_per_case": 108,
@@ -1401,7 +1399,7 @@
       {
         "wbscm_id": "100220",
         "description": "Peaches, Diced, Extra Light Syrup, Canned",
-        "category": "vegetables",
+        "category": "fruits",
         "case_weight_lbs": null,
         "pack_size_description": "6 #10 cans",
         "servings_per_case": 106,
@@ -1417,7 +1415,7 @@
       {
         "wbscm_id": "100224",
         "description": "Pears, Sliced, Extra Light Syrup, Canned",
-        "category": "vegetables",
+        "category": "fruits",
         "case_weight_lbs": null,
         "pack_size_description": "6/#10 cans",
         "servings_per_case": 89,
@@ -1433,7 +1431,7 @@
       {
         "wbscm_id": "100225",
         "description": "Pears, Diced, Extra Light Syrup, Canned",
-        "category": "vegetables",
+        "category": "fruits",
         "case_weight_lbs": null,
         "pack_size_description": "cases containing six #10 cans",
         "servings_per_case": 114,
@@ -1449,7 +1447,7 @@
       {
         "wbscm_id": "100226",
         "description": "Pears, Halves, Extra Light Syrup, Canned",
-        "category": "vegetables",
+        "category": "fruits",
         "case_weight_lbs": null,
         "pack_size_description": "cases containing six #10 cans",
         "servings_per_case": 93,
@@ -1465,7 +1463,7 @@
       {
         "wbscm_id": "100238",
         "description": "Peaches, Sliced, Frozen",
-        "category": "vegetables",
+        "category": "fruits",
         "case_weight_lbs": 24,
         "pack_size_description": "twelve 2-pound bags",
         "servings_per_case": 66,
@@ -1481,7 +1479,7 @@
       {
         "wbscm_id": "100239",
         "description": "Peaches, Sliced, Frozen",
-        "category": "vegetables",
+        "category": "fruits",
         "case_weight_lbs": 20,
         "pack_size_description": "20-pound case",
         "servings_per_case": 55,
@@ -1497,7 +1495,7 @@
       {
         "wbscm_id": "100241",
         "description": "Peaches, Diced, Cups, Frozen",
-        "category": "vegetables",
+        "category": "fruits",
         "case_weight_lbs": null,
         "pack_size_description": "96 4.4-ounce cups",
         "servings_per_case": 96,
@@ -1509,7 +1507,9 @@
         "processing_level": "processed",
         "notes": "One case of peach cups provides 96 \u00bd-cup servings of fruit. One 4.4-ounce cup of peaches credits as \u00bd cup fruit.",
         "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/100241%20Peaches%20Diced%20Cups.pdf"
-      },
+      }
+    ],
+    "vegetables": [
       {
         "wbscm_id": "100309",
         "description": "Carrots, Sliced, Low-sodium, Canned",
@@ -1735,22 +1735,6 @@
         "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/100357%20Potatoes%20French%20Cut%20Low-sodium.pdf"
       },
       {
-        "wbscm_id": "100396",
-        "description": "Peanut Butter, Smooth",
-        "category": "vegetables",
-        "case_weight_lbs": 30,
-        "pack_size_description": "six 5-pound containers",
-        "servings_per_case": 432,
-        "serving_size_oz": null,
-        "cn_credit_oz": 1.0,
-        "cn_credit_category": "meat_alternate",
-        "calories_per_serving": 200,
-        "protein_per_serving": 7,
-        "processing_level": "processed",
-        "notes": "One case of peanut butter yields 432 2-Tablespoon servings. CN Crediting: 2 Tablespoons of peanut butter credit as 1 ounce equivalent meat/meat alternate.",
-        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/100396.pdf"
-      },
-      {
         "wbscm_id": "110186",
         "description": "Tomato, Salsa, Low-Sodium, Pouch",
         "category": "vegetables",
@@ -1911,22 +1895,6 @@
         "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/110844-PotatoesDicedNoSaltAddedFrozen.pdf"
       },
       {
-        "wbscm_id": "110854",
-        "description": "Peanut Butter, Individual Portion",
-        "category": "vegetables",
-        "case_weight_lbs": 8.25,
-        "pack_size_description": "120 1.1-ounce packages",
-        "servings_per_case": 120,
-        "serving_size_oz": 1.1,
-        "cn_credit_oz": 1.0,
-        "cn_credit_category": "meat_alternate",
-        "calories_per_serving": 200,
-        "protein_per_serving": 6,
-        "processing_level": "processed",
-        "notes": "CN Crediting: One 1.1-ounce package of peanut butter credits as 1 ounce equivalent meat/meat alternate.",
-        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/110854.pdf"
-      },
-      {
         "wbscm_id": "111052",
         "description": "Carrots, Diced, No Salt Added, Frozen",
         "category": "vegetables",
@@ -1973,13 +1941,43 @@
         "processing_level": "processed",
         "notes": "One case provides approximately 153 \u00bd-cup servings of heated, drained mixed vegetables. CN Crediting: \u00bd cup mixed vegetables credits as \u00bd cup additional vegetables.",
         "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/111230-MixedVegetablesNoSaltAddedFrozen.pdf"
-      }
-    ],
-    "beans": [
+      },
+      {
+        "wbscm_id": "100336",
+        "description": "Spaghetti Sauce, Low-sodium, Canned",
+        "category": "vegetables",
+        "case_weight_lbs": null,
+        "pack_size_description": "Cases containing six #10 cans",
+        "servings_per_case": 144,
+        "serving_size_oz": null,
+        "cn_credit_oz": null,
+        "cn_credit_category": "vegetable",
+        "calories_per_serving": 50,
+        "protein_per_serving": 2,
+        "processing_level": "processed",
+        "notes": "One case of spaghetti sauce provides about 144 \u00bd-cup servings. CN Crediting: \u00bd cup spaghetti sauce credits as \u00bd cup red/orange vegetable.",
+        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/100336%20Spaghetti%20Sauce%20Low-sodium%20Canned.pdf"
+      },
+      {
+        "wbscm_id": "110177",
+        "description": "Spaghetti Sauce, Low-sodium, Pouch",
+        "category": "vegetables",
+        "case_weight_lbs": 39.75,
+        "pack_size_description": "six 106-ounce pouches",
+        "servings_per_case": 144,
+        "serving_size_oz": 4.41,
+        "cn_credit_oz": null,
+        "cn_credit_category": "vegetable",
+        "calories_per_serving": 50,
+        "protein_per_serving": 2,
+        "processing_level": "processed",
+        "notes": "CN Crediting: \u00bd cup spaghetti sauce credits as \u00bd cup red/orange vegetable.",
+        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/110177%20Spaghetti%20Sauce%20Low-sodium%20Pouch.pdf"
+      },
       {
         "wbscm_id": "100307",
         "description": "Green Beans, Low-Sodium, Canned",
-        "category": "beans",
+        "category": "vegetables",
         "case_weight_lbs": null,
         "pack_size_description": "6 #10 cans",
         "servings_per_case": 136,
@@ -1995,7 +1993,7 @@
       {
         "wbscm_id": "100351",
         "description": "Beans, Green, No Salt Added, Frozen",
-        "category": "beans",
+        "category": "vegetables",
         "case_weight_lbs": 30,
         "pack_size_description": "30 pound bulk case",
         "servings_per_case": 174,
@@ -2008,6 +2006,24 @@
         "notes": "One case yields about 174 \u00bd-cup servings of cooked, drained green beans. CN Crediting: \u00bd cup cooked, drained green beans credits as \u00bd cup Other Vegetable.",
         "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/100351%20Beans%20Green%20No%20Salt%20Added%20Frozen.pdf"
       },
+      {
+        "wbscm_id": "111054",
+        "description": "Beans, Green, No Salt Added, Frozen",
+        "category": "vegetables",
+        "case_weight_lbs": 24,
+        "pack_size_description": "twelve 2-pound packages",
+        "servings_per_case": 139,
+        "serving_size_oz": 2.4,
+        "cn_credit_oz": null,
+        "cn_credit_category": "vegetable",
+        "calories_per_serving": 19,
+        "protein_per_serving": 1,
+        "processing_level": "processed",
+        "notes": "CN Crediting: \u00bd cup cooked, drained green beans credits as \u00bd cup Other Vegetable. One case yields about 139 \u00bd-cup servings.",
+        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/111054-Beans%2CGreen%2CNo-Salt-Added-Frozen_4.13.20.pdf"
+      }
+    ],
+    "beans": [
       {
         "wbscm_id": "100359",
         "description": "Beans, Black, Low-sodium, Canned",
@@ -2169,22 +2185,6 @@
         "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/100382.pdf"
       },
       {
-        "wbscm_id": "111054",
-        "description": "Beans, Green, No Salt Added, Frozen",
-        "category": "beans",
-        "case_weight_lbs": 24,
-        "pack_size_description": "twelve 2-pound packages",
-        "servings_per_case": 139,
-        "serving_size_oz": 2.4,
-        "cn_credit_oz": null,
-        "cn_credit_category": "vegetable",
-        "calories_per_serving": 19,
-        "protein_per_serving": 1,
-        "processing_level": "processed",
-        "notes": "CN Crediting: \u00bd cup cooked, drained green beans credits as \u00bd cup Other Vegetable. One case yields about 139 \u00bd-cup servings.",
-        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/111054-Beans%2CGreen%2CNo-Salt-Added-Frozen_4.13.20.pdf"
-      },
-      {
         "wbscm_id": "111860",
         "description": "Black Bean Burger, Patties, Cooked, 2.0 MMA, Frozen",
         "category": "beans",
@@ -2234,22 +2234,6 @@
       }
     ],
     "grains": [
-      {
-        "wbscm_id": "100336",
-        "description": "Spaghetti Sauce, Low-sodium, Canned",
-        "category": "grains",
-        "case_weight_lbs": null,
-        "pack_size_description": "Cases containing six #10 cans",
-        "servings_per_case": 144,
-        "serving_size_oz": null,
-        "cn_credit_oz": null,
-        "cn_credit_category": "vegetable",
-        "calories_per_serving": 50,
-        "protein_per_serving": 2,
-        "processing_level": "processed",
-        "notes": "One case of spaghetti sauce provides about 144 \u00bd-cup servings. CN Crediting: \u00bd cup spaghetti sauce credits as \u00bd cup red/orange vegetable.",
-        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/100336%20Spaghetti%20Sauce%20Low-sodium%20Canned.pdf"
-      },
       {
         "wbscm_id": "100400",
         "description": "Flour, All Purpose, Enriched",
@@ -2345,22 +2329,6 @@
         "processing_level": "raw",
         "notes": "One case yields about 388 ounce equivalents of grain. CN Crediting: 1 ounce dry or \u00bd cup cooked rice credits as 1 ounce equivalent grains.",
         "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/101031%20%20Rice%20Brown%20Long-Grain%20Parboiled.pdf"
-      },
-      {
-        "wbscm_id": "110177",
-        "description": "Spaghetti Sauce, Low-sodium, Pouch",
-        "category": "grains",
-        "case_weight_lbs": 39.75,
-        "pack_size_description": "six 106-ounce pouches",
-        "servings_per_case": 144,
-        "serving_size_oz": 4.41,
-        "cn_credit_oz": null,
-        "cn_credit_category": "vegetable",
-        "calories_per_serving": 50,
-        "protein_per_serving": 2,
-        "processing_level": "processed",
-        "notes": "CN Crediting: \u00bd cup spaghetti sauce credits as \u00bd cup red/orange vegetable.",
-        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/110177%20Spaghetti%20Sauce%20Low-sodium%20Pouch.pdf"
       },
       {
         "wbscm_id": "110208",
@@ -2539,6 +2507,38 @@
         "processing_level": "processed",
         "notes": "One case yields 432 2-Tablespoon servings. 2 Tablespoons credits as 1 ounce equivalent meat/meat alternate. Product required to be processed/packaged using peanut and tree nut free equipment.",
         "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/100935.pdf"
+      },
+      {
+        "wbscm_id": "100396",
+        "description": "Peanut Butter, Smooth",
+        "category": "other",
+        "case_weight_lbs": 30,
+        "pack_size_description": "six 5-pound containers",
+        "servings_per_case": 432,
+        "serving_size_oz": null,
+        "cn_credit_oz": 1.0,
+        "cn_credit_category": "meat_alternate",
+        "calories_per_serving": 200,
+        "protein_per_serving": 7,
+        "processing_level": "processed",
+        "notes": "One case of peanut butter yields 432 2-Tablespoon servings. CN Crediting: 2 Tablespoons of peanut butter credit as 1 ounce equivalent meat/meat alternate.",
+        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/100396.pdf"
+      },
+      {
+        "wbscm_id": "110854",
+        "description": "Peanut Butter, Individual Portion",
+        "category": "other",
+        "case_weight_lbs": 8.25,
+        "pack_size_description": "120 1.1-ounce packages",
+        "servings_per_case": 120,
+        "serving_size_oz": 1.1,
+        "cn_credit_oz": 1.0,
+        "cn_credit_category": "meat_alternate",
+        "calories_per_serving": 200,
+        "protein_per_serving": 6,
+        "processing_level": "processed",
+        "notes": "CN Crediting: One 1.1-ounce package of peanut butter credits as 1 ounce equivalent meat/meat alternate.",
+        "source_url": "https://www.fns.usda.gov/sites/default/files/resource-files/110854.pdf"
       }
     ],
     "dairy": [
@@ -3124,7 +3124,7 @@
     {
       "wbscm_id": "100219",
       "description": "Peaches, Sliced, Extra Light Syrup, Canned",
-      "category": "vegetables",
+      "category": "fruits",
       "case_weight_lbs": null,
       "pack_size_description": "cases containing six #10 cans",
       "servings_per_case": 108,
@@ -3140,7 +3140,7 @@
     {
       "wbscm_id": "100220",
       "description": "Peaches, Diced, Extra Light Syrup, Canned",
-      "category": "vegetables",
+      "category": "fruits",
       "case_weight_lbs": null,
       "pack_size_description": "6 #10 cans",
       "servings_per_case": 106,
@@ -3156,7 +3156,7 @@
     {
       "wbscm_id": "100224",
       "description": "Pears, Sliced, Extra Light Syrup, Canned",
-      "category": "vegetables",
+      "category": "fruits",
       "case_weight_lbs": null,
       "pack_size_description": "6/#10 cans",
       "servings_per_case": 89,
@@ -3172,7 +3172,7 @@
     {
       "wbscm_id": "100225",
       "description": "Pears, Diced, Extra Light Syrup, Canned",
-      "category": "vegetables",
+      "category": "fruits",
       "case_weight_lbs": null,
       "pack_size_description": "cases containing six #10 cans",
       "servings_per_case": 114,
@@ -3188,7 +3188,7 @@
     {
       "wbscm_id": "100226",
       "description": "Pears, Halves, Extra Light Syrup, Canned",
-      "category": "vegetables",
+      "category": "fruits",
       "case_weight_lbs": null,
       "pack_size_description": "cases containing six #10 cans",
       "servings_per_case": 93,
@@ -3220,7 +3220,7 @@
     {
       "wbscm_id": "100238",
       "description": "Peaches, Sliced, Frozen",
-      "category": "vegetables",
+      "category": "fruits",
       "case_weight_lbs": 24,
       "pack_size_description": "twelve 2-pound bags",
       "servings_per_case": 66,
@@ -3236,7 +3236,7 @@
     {
       "wbscm_id": "100239",
       "description": "Peaches, Sliced, Frozen",
-      "category": "vegetables",
+      "category": "fruits",
       "case_weight_lbs": 20,
       "pack_size_description": "20-pound case",
       "servings_per_case": 55,
@@ -3252,7 +3252,7 @@
     {
       "wbscm_id": "100241",
       "description": "Peaches, Diced, Cups, Frozen",
-      "category": "vegetables",
+      "category": "fruits",
       "case_weight_lbs": null,
       "pack_size_description": "96 4.4-ounce cups",
       "servings_per_case": 96,
@@ -3428,7 +3428,7 @@
     {
       "wbscm_id": "100307",
       "description": "Green Beans, Low-Sodium, Canned",
-      "category": "beans",
+      "category": "vegetables",
       "case_weight_lbs": null,
       "pack_size_description": "6 #10 cans",
       "servings_per_case": 136,
@@ -3572,7 +3572,7 @@
     {
       "wbscm_id": "100336",
       "description": "Spaghetti Sauce, Low-sodium, Canned",
-      "category": "grains",
+      "category": "vegetables",
       "case_weight_lbs": null,
       "pack_size_description": "Cases containing six #10 cans",
       "servings_per_case": 144,
@@ -3620,7 +3620,7 @@
     {
       "wbscm_id": "100351",
       "description": "Beans, Green, No Salt Added, Frozen",
-      "category": "beans",
+      "category": "vegetables",
       "case_weight_lbs": 30,
       "pack_size_description": "30 pound bulk case",
       "servings_per_case": 174,
@@ -3860,7 +3860,7 @@
     {
       "wbscm_id": "100396",
       "description": "Peanut Butter, Smooth",
-      "category": "vegetables",
+      "category": "other",
       "case_weight_lbs": 30,
       "pack_size_description": "six 5-pound containers",
       "servings_per_case": 432,
@@ -4148,7 +4148,7 @@
     {
       "wbscm_id": "110177",
       "description": "Spaghetti Sauce, Low-sodium, Pouch",
-      "category": "grains",
+      "category": "vegetables",
       "case_weight_lbs": 39.75,
       "pack_size_description": "six 106-ounce pouches",
       "servings_per_case": 144,
@@ -4788,7 +4788,7 @@
     {
       "wbscm_id": "110854",
       "description": "Peanut Butter, Individual Portion",
-      "category": "vegetables",
+      "category": "other",
       "case_weight_lbs": 8.25,
       "pack_size_description": "120 1.1-ounce packages",
       "servings_per_case": 120,
@@ -4916,7 +4916,7 @@
     {
       "wbscm_id": "111054",
       "description": "Beans, Green, No Salt Added, Frozen",
-      "category": "beans",
+      "category": "vegetables",
       "case_weight_lbs": 24,
       "pack_size_description": "twelve 2-pound packages",
       "servings_per_case": 139,

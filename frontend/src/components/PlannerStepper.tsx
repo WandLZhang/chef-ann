@@ -46,7 +46,7 @@ export default function PlannerStepper({ currentStep }: PlannerStepperProps) {
         pathname.startsWith('/planner/pork') || pathname.startsWith('/planner/fish') || 
         pathname.startsWith('/planner/vegetables') || pathname.startsWith('/planner/fruits') ||
         pathname.startsWith('/planner/grains') || pathname.startsWith('/planner/dairy') || 
-        pathname.startsWith('/planner/legumes')) {
+        pathname.startsWith('/planner/legumes') || pathname.startsWith('/planner/other')) {
       return 1;
     }
     if (pathname === '/planner/menu') return 2;

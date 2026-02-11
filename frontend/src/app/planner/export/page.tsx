@@ -69,6 +69,7 @@ const categoryEmojis: Record<string, string> = {
   grains: '🌾',
   dairy: '🧀',
   legumes: '🫘',
+  other: '📦',
 };
 
 export default function ExportPage() {

@@ -10,6 +10,7 @@ export function generateStaticParams() {
     { category: 'grains' },
     { category: 'dairy' },
     { category: 'legumes' },
+    { category: 'other' },
   ];
 }
 

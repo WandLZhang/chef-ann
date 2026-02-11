@@ -95,6 +95,7 @@ export default function PlannerPage() {
     { name: 'Grains', emoji: '🌾', slug: 'grains' },
     { name: 'Dairy', emoji: '🧀', slug: 'dairy' },
     { name: 'Legumes', emoji: '🫘', slug: 'legumes' },
+    { name: 'Other', emoji: '📦', slug: 'other' },
   ];
 
   return (

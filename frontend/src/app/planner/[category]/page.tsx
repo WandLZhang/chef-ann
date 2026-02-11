@@ -66,6 +66,7 @@ const categoryMeta: Record<string, { name: string; emoji: string }> = {
   grains: { name: 'Grains', emoji: '🌾' },
   dairy: { name: 'Dairy', emoji: '🧀' },
   legumes: { name: 'Legumes', emoji: '🫘' },
+  other: { name: 'Other', emoji: '📦' },
 };
 
 export default function CategoryPage() {
