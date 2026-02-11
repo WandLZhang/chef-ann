@@ -10,7 +10,6 @@
  * using servings_per_case from USDA Product Info Sheets (source of truth).
  * No Gemini API calls needed — it's just multiplication.
  * 
- * @author Chef Ann Foundation
  * @date 2026-02-10
  */
 

@@ -71,43 +71,55 @@ interface ComplianceResult {
 }
 
 // Recipe mappings by protein type - using IDs that match recipes.ts exactly
-const recipesByProtein: Record<string, { id: string; name: string; serving: string; grain: string }[]> = {
+// Each recipe includes grade-specific serving sizes from the Chef Ann recipe PDF
+const recipesByProtein: Record<string, { id: string; name: string; serving: Record<string, string>; grain: string }[]> = {
   Beef: [
-    { id: 'OU516', name: 'Beef Birria Tacos', serving: '3 Tacos', grain: 'Corn Tortilla' },
-    { id: 'FS004', name: 'Beef and Broccoli K-8', serving: '1 Bowl (8oz)', grain: 'Brown Rice' },
-    { id: 'OU004', name: 'Beef Bulgogi', serving: '4oz + veggies', grain: 'Brown Rice' },
-    { id: 'MB200', name: 'Beef Chili', serving: '1 Cup (8oz)', grain: 'WG Roll' },
-    { id: 'MV065', name: 'Baked Potato with Taco Meat', serving: '1 Each', grain: 'Baked Potato' },
-    { id: 'FS003', name: 'Baked Beef and Sausage Penne', serving: '3/4 Cup (8oz)', grain: 'WG Pasta' },
+    { id: 'OU516', name: 'Beef Birria Tacos', serving: { prek: '2 Tacos', elementary: '3 Tacos', middle: '3 Tacos', high: '4 Tacos' }, grain: 'Corn Tortilla' },
+    { id: 'FS004', name: 'Beef and Broccoli K-8', serving: { prek: '1/2 Bowl (6oz)', elementary: '1 Bowl (8oz)', middle: '1 Bowl (8oz)', high: '1 Bowl (10oz)' }, grain: 'Brown Rice' },
+    { id: 'OU004', name: 'Beef Bulgogi', serving: { prek: '3oz + veggies', elementary: '4oz + veggies', middle: '4oz + veggies', high: '5oz + veggies' }, grain: 'Brown Rice' },
+    { id: 'MB200', name: 'Beef Chili', serving: { prek: '3/4 Cup (6oz)', elementary: '1 Cup (8oz)', middle: '1 Cup (8oz)', high: '1.25 Cup (10oz)' }, grain: 'WG Roll' },
+    { id: 'MV065', name: 'Baked Potato with Taco Meat', serving: { prek: '1 Each (sm)', elementary: '1 Each', middle: '1 Each', high: '1 Each (lg)' }, grain: 'Baked Potato' },
+    { id: 'FS003', name: 'Baked Beef and Sausage Penne', serving: { prek: '1/2 Cup (5oz)', elementary: '3/4 Cup (8oz)', middle: '3/4 Cup (8oz)', high: '1 Cup (10oz)' }, grain: 'WG Pasta' },
   ],
   Chicken: [
-    { id: 'FS045', name: 'Crispy Chicken Sandwich', serving: '1 Sandwich', grain: 'WG Bun' },
-    { id: 'MP003', name: 'Chicken Enchiladas', serving: '2 Enchiladas', grain: 'WG Tortilla' },
-    { id: 'FS010', name: 'Butternut Squash and Chicken Curry', serving: '1 Cup (8oz)', grain: 'Brown Rice' },
-    { id: 'MP070', name: 'Chicken Burrito', serving: '1 Burrito', grain: 'WG Tortilla' },
-    { id: 'R8998', name: 'Chicken Pozole', serving: '1 Cup (8oz)', grain: 'Tortilla Chips' },
-    { id: 'OU002', name: 'Banh Mi Sandwich', serving: '1 Sandwich', grain: 'WG Baguette' },
-    { id: 'MP320', name: 'Oven Fried Chicken Drumstick', serving: '1 Drumstick', grain: 'WG Roll' },
+    { id: 'FS045', name: 'Crispy Chicken Sandwich', serving: { prek: '1 Sandwich (sm)', elementary: '1 Sandwich', middle: '1 Sandwich', high: '1 Sandwich (lg)' }, grain: 'WG Bun' },
+    { id: 'MP003', name: 'Chicken Enchiladas', serving: { prek: '1 Enchilada', elementary: '2 Enchiladas', middle: '2 Enchiladas', high: '2 Enchiladas' }, grain: 'WG Tortilla' },
+    { id: 'FS010', name: 'Butternut Squash and Chicken Curry', serving: { prek: '3/4 Cup (6oz)', elementary: '1 Cup (8oz)', middle: '1 Cup (8oz)', high: '1.25 Cup (10oz)' }, grain: 'Brown Rice' },
+    { id: 'MP070', name: 'Chicken Burrito', serving: { prek: '1/2 Burrito', elementary: '1 Burrito', middle: '1 Burrito', high: '1 Burrito' }, grain: 'WG Tortilla' },
+    { id: 'R8998', name: 'Chicken Pozole', serving: { prek: '3/4 Cup (6oz)', elementary: '1 Cup (8oz)', middle: '1 Cup (8oz)', high: '1.25 Cup (10oz)' }, grain: 'Tortilla Chips' },
+    { id: 'OU002', name: 'Banh Mi Sandwich', serving: { prek: '1/2 Sandwich', elementary: '1 Sandwich', middle: '1 Sandwich', high: '1 Sandwich' }, grain: 'WG Baguette' },
+    { id: 'MP320', name: 'Oven Fried Chicken Drumstick', serving: { prek: '1 Drumstick', elementary: '1 Drumstick', middle: '1 Drumstick', high: '2 Drumsticks' }, grain: 'WG Roll' },
   ],
   Pork: [
-    { id: 'MB450', name: 'Cuban Sandwich', serving: '1 Sandwich', grain: 'WG Roll' },
-    { id: 'FS041', name: 'Pork Green Chili Burrito', serving: '1 Burrito', grain: 'WG Tortilla' },
+    { id: 'MB450', name: 'Cuban Sandwich', serving: { prek: '1/2 Sandwich', elementary: '1 Sandwich', middle: '1 Sandwich', high: '1 Sandwich' }, grain: 'WG Roll' },
+    { id: 'FS041', name: 'Pork Green Chili Burrito', serving: { prek: '1/2 Burrito', elementary: '1 Burrito', middle: '1 Burrito', high: '1 Burrito' }, grain: 'WG Tortilla' },
   ],
   Fish: [
-    { id: 'OU521', name: 'Salmon Rice Bowl', serving: '1 Bowl (6oz)', grain: 'Brown Rice' },
+    { id: 'OU521', name: 'Salmon Rice Bowl', serving: { prek: '1 Bowl (4oz)', elementary: '1 Bowl (6oz)', middle: '1 Bowl (6oz)', high: '1 Bowl (8oz)' }, grain: 'Brown Rice' },
   ],
   Beans: [
-    { id: 'MV401', name: 'Black Bean Veggie Burger', serving: '1 Sandwich', grain: 'WG Bun' },
-    { id: 'PF009', name: 'Chickpea Masala', serving: '3/4 Cup (7.5oz)', grain: 'Brown Rice' },
-    { id: 'R018', name: 'Hummus Avocado Wrap', serving: '1 Wrap', grain: 'WG Tortilla' },
-    { id: 'MV017', name: 'Bean & Cheese Nachos', serving: '1 Serving', grain: 'Tortilla Chips' },
-    { id: 'Ing002', name: '3 Sisters Stew', serving: '1 Cup (8.75oz)', grain: 'WG Roll' },
-    { id: 'FS034', name: 'Macaroni and Cheese K-8', serving: '3/4 Cup (5.7oz)', grain: 'WG Pasta' },
+    { id: 'MV401', name: 'Black Bean Veggie Burger', serving: { prek: '1 Sandwich (sm)', elementary: '1 Sandwich', middle: '1 Sandwich', high: '1 Sandwich' }, grain: 'WG Bun' },
+    { id: 'PF009', name: 'Chickpea Masala', serving: { prek: '1/2 Cup (5oz)', elementary: '3/4 Cup (7.5oz)', middle: '3/4 Cup (7.5oz)', high: '1 Cup (10oz)' }, grain: 'Brown Rice' },
+    { id: 'R018', name: 'Hummus Avocado Wrap', serving: { prek: '1/2 Wrap', elementary: '1 Wrap', middle: '1 Wrap', high: '1 Wrap' }, grain: 'WG Tortilla' },
+    { id: 'MV017', name: 'Bean & Cheese Nachos', serving: { prek: '1 Serving (sm)', elementary: '1 Serving', middle: '1 Serving', high: '1 Serving (lg)' }, grain: 'Tortilla Chips' },
+    { id: 'Ing002', name: '3 Sisters Stew', serving: { prek: '3/4 Cup (6oz)', elementary: '1 Cup (8.75oz)', middle: '1 Cup (8.75oz)', high: '1.25 Cup (10oz)' }, grain: 'WG Roll' },
+    { id: 'FS034', name: 'Macaroni and Cheese K-8', serving: { prek: '1/2 Cup (4oz)', elementary: '3/4 Cup (5.7oz)', middle: '3/4 Cup (5.7oz)', high: '1 Cup (7.5oz)' }, grain: 'WG Pasta' },
   ],
 };
 
-// Sample menu templates based on allocated proteins
-const generateSampleMenu = (allocations: Record<string, CategoryAllocation>): MenuDay[][] => {
+/**
+ * @brief Generate a 5-week menu cycle with varied protein rotation
+ * 
+ * @details Uses an offset-based rotation so proteins shift across different
+ * days each week, preventing any single protein (e.g., Fish/Salmon Rice Bowl)
+ * from always landing on the same day of the week. The grade group determines
+ * the serving size displayed for each recipe.
+ * 
+ * @param allocations Record of category allocations from commodity selection
+ * @param gradeGroup The selected grade group ('prek', 'elementary', 'middle', 'high')
+ * @return 5 weeks of 5-day menu arrays
+ */
+const generateSampleMenu = (allocations: Record<string, CategoryAllocation>, gradeGroup: string = 'elementary'): MenuDay[][] => {
   const hasBeef = allocations.beef?.totalCost > 0;
   const hasPoultry = allocations.poultry?.totalCost > 0;
   const hasPork = allocations.pork?.totalCost > 0;
@@ -133,22 +145,40 @@ const generateSampleMenu = (allocations: Record<string, CategoryAllocation>): Me
   const vegetables = ['Broccoli', 'Carrots', 'Green Beans', 'Corn Salad', 'Roasted Sweet Potato', 'Mixed Salad', 'Peas', 'Brussel Sprout Slaw'];
   const fruits = ['Apple Slices', 'Orange Wedges', 'Grapes', 'Banana', 'Melon', 'Fresh Berries', 'Pear', 'Peaches'];
 
+  // Use an offset that is NOT a multiple of the number of proteins, so that
+  // proteins rotate to different days each week instead of staying static.
+  // With 5 proteins and offset=3, the pattern shifts by 3 each week:
+  //   Week 0: Beef, Chicken, Pork, Fish,  Beans
+  //   Week 1: Pork, Fish,    Beans,Beef,  Chicken
+  //   Week 2: Beans,Beef,    Chicken,Pork,Fish
+  //   etc.
+  const weekOffset = proteins.length > 1
+    ? (proteins.length <= 3 ? 1 : 3)  // Pick an offset coprime to protein count
+    : 0;
+
   for (let w = 0; w < 5; w++) {
     const week: MenuDay[] = [];
     for (let d = 0; d < 5; d++) {
-      const proteinIdx = (w * 5 + d) % proteins.length;
+      // Shift protein assignment by weekOffset each week so no protein is
+      // locked to the same day across all weeks
+      const proteinIdx = (w * weekOffset + d) % proteins.length;
       const protein = proteins[proteinIdx];
-      const recipeIdx = (w + d) % protein.recipes.length;
+      // Vary recipe selection: use week number to pick different recipes
+      // from the same protein category across weeks
+      const recipeIdx = (w + Math.floor(d / 2)) % protein.recipes.length;
       const recipe = protein.recipes[recipeIdx];
+      
+      // Resolve grade-specific serving size
+      const servingSize = recipe.serving[gradeGroup] || recipe.serving['elementary'] || Object.values(recipe.serving)[0];
       
       week.push({
         entree: recipe.name,
         recipeId: recipe.id,
-        servingSize: recipe.serving,
+        servingSize,
         protein: protein.name,
-        vegetable: vegetables[(w * 5 + d) % vegetables.length],
-        fruit: fruits[(w * 5 + d) % fruits.length],
-        grain: recipe.grain, // Grain is now determined by the recipe
+        vegetable: vegetables[(w * 3 + d) % vegetables.length],
+        fruit: fruits[(w * 2 + d) % fruits.length],
+        grain: recipe.grain,
       });
     }
     weeks.push(week);
@@ -197,16 +227,16 @@ export default function MenuPage() {
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
 
   useEffect(() => {
-    // Load allocations from localStorage
+    // Load allocations from localStorage and regenerate menu when gradeGroup changes
     const saved = localStorage.getItem('commodityAllocations');
     if (saved) {
       const parsed = JSON.parse(saved);
       setAllocations(parsed);
-      setMenu(generateSampleMenu(parsed));
+      setMenu(generateSampleMenu(parsed, gradeGroup));
     } else {
-      setMenu(generateSampleMenu({}));
+      setMenu(generateSampleMenu({}, gradeGroup));
     }
-  }, []);
+  }, [gradeGroup]);
 
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -301,7 +331,7 @@ export default function MenuPage() {
       legumes: { category: 'legumes', totalCost: 4000, totalServings: 35000 },
     };
     setAllocations(exampleAllocations);
-    setMenu(generateSampleMenu(exampleAllocations));
+    setMenu(generateSampleMenu(exampleAllocations, gradeGroup));
   };
 
   return (
