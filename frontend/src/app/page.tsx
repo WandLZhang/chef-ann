@@ -126,7 +126,7 @@ export default function SplashPage() {
               letterSpacing: '-0.02em',
             }}
           >
-            Commodity Summer Planning
+            Commodity Foods Planning
           </Typography>
 
           <Typography

@@ -8,7 +8,7 @@ import Providers from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Commodity Summer Planning',
+  title: 'Commodity Foods Planning',
   description: 'Plan your USDA Foods allocations with values, precision, and speed.',
   keywords: ['USDA Foods', 'commodity planning', 'school nutrition'],
 };
