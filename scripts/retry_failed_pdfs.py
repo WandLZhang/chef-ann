@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-MODEL = "gemini-3-pro-preview"
+MODEL = "gemini-3.1-pro-preview"
 PDF_DIR = Path(__file__).parent.parent / "context" / "usda_info_sheets"
 OUTPUT_FILE = Path(__file__).parent.parent / "data" / "usda_foods_comprehensive.json"
 

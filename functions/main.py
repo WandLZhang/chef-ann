@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 # Initialize Gemini client using Vertex AI
 # Project from environment variable (GCP_PROJECT, GOOGLE_CLOUD_PROJECT, or fallback)
 GCP_PROJECT = os.environ.get("GCP_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT") or "wz-chef-ann"
-GCP_LOCATION = os.environ.get("GCP_LOCATION", "global")  # gemini-3-pro-preview is in 'global' region
-MODEL = "gemini-3-pro-preview"
+GCP_LOCATION = os.environ.get("GCP_LOCATION", "global")  # gemini-3.1-pro-preview is in 'global' region
+MODEL = "gemini-3.1-pro-preview"
 
 def get_client():
     """Create Gemini client using Vertex AI with application-default credentials."""

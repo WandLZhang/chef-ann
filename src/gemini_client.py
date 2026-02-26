@@ -29,7 +29,7 @@ if not GEMINI_API_KEY:
         "GEMINI_API_KEY not found in environment variables. "
         "Please set it in .env file or export it."
     )
-MODEL = "gemini-3-pro-preview"
+MODEL = "gemini-3.1-pro-preview"
 
 
 def create_client() -> genai.Client:

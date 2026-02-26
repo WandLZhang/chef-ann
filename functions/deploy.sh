@@ -30,7 +30,7 @@ CPU="2"
 TIMEOUT="300"
 MAX_INSTANCES="100"
 GCP_PROJECT="${GCP_PROJECT:-wz-chef-ann}"
-GCP_LOCATION="global"  # gemini-3-pro-preview requires global region
+GCP_LOCATION="global"  # gemini-3.1-pro-preview requires global region
 
 echo "🚀 Deploying Chef Ann Cloud Function..."
 echo "   Function: $FUNCTION_NAME"
