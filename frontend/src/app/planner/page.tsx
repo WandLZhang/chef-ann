@@ -153,17 +153,17 @@ export default function PlannerPage() {
             size="small"
             startIcon={<AutoFixHighIcon />}
             onClick={() => {
-              // Pre-populate with realistic allocations for demo
+              // Pre-populate with realistic allocations for demo (includes scratch vs processed breakdown)
               const exampleAllocations = {
-                beef: { category: 'beef', totalCost: 13150, totalServings: 24800, items: [] },
-                poultry: { category: 'poultry', totalCost: 18500, totalServings: 42000, items: [] },
-                pork: { category: 'pork', totalCost: 8200, totalServings: 18000, items: [] },
-                fish: { category: 'fish', totalCost: 5600, totalServings: 8000, items: [] },
-                vegetables: { category: 'vegetables', totalCost: 45000, totalServings: 180000, items: [] },
-                fruits: { category: 'fruits', totalCost: 35000, totalServings: 120000, items: [] },
-                grains: { category: 'grains', totalCost: 12000, totalServings: 90000, items: [] },
-                dairy: { category: 'dairy', totalCost: 22000, totalServings: 55000, items: [] },
-                legumes: { category: 'legumes', totalCost: 4000, totalServings: 35000, items: [] },
+                beef: { category: 'beef', totalCost: 13150, totalServings: 24800, scratchCost: 9750, processedCost: 3400, scratchServings: 17200, processedServings: 7600, items: [] },
+                poultry: { category: 'poultry', totalCost: 18500, totalServings: 42000, scratchCost: 12800, processedCost: 5700, scratchServings: 28000, processedServings: 14000, items: [] },
+                pork: { category: 'pork', totalCost: 8200, totalServings: 18000, scratchCost: 6200, processedCost: 2000, scratchServings: 13500, processedServings: 4500, items: [] },
+                fish: { category: 'fish', totalCost: 5600, totalServings: 8000, scratchCost: 4200, processedCost: 1400, scratchServings: 5600, processedServings: 2400, items: [] },
+                vegetables: { category: 'vegetables', totalCost: 45000, totalServings: 180000, scratchCost: 38000, processedCost: 7000, scratchServings: 150000, processedServings: 30000, items: [] },
+                fruits: { category: 'fruits', totalCost: 35000, totalServings: 120000, scratchCost: 28000, processedCost: 7000, scratchServings: 96000, processedServings: 24000, items: [] },
+                grains: { category: 'grains', totalCost: 12000, totalServings: 90000, scratchCost: 12000, processedCost: 0, scratchServings: 90000, processedServings: 0, items: [] },
+                dairy: { category: 'dairy', totalCost: 22000, totalServings: 55000, scratchCost: 16000, processedCost: 6000, scratchServings: 40000, processedServings: 15000, items: [] },
+                legumes: { category: 'legumes', totalCost: 4000, totalServings: 35000, scratchCost: 3200, processedCost: 800, scratchServings: 28000, processedServings: 7000, items: [] },
               };
               localStorage.setItem('commodityAllocations', JSON.stringify(exampleAllocations));
               // Refresh state

@@ -23,12 +23,18 @@ interface ItemDetail {
   cost: number;
   servings: number;
   cases?: number;
+  cafRecommended?: boolean;
+  processingLevel?: string;
 }
 
 interface CategoryAllocation {
   category: string;
   totalCost: number;
   totalServings: number;
+  scratchCost?: number;
+  processedCost?: number;
+  scratchServings?: number;
+  processedServings?: number;
   items: ItemDetail[];
 }
 
@@ -292,6 +298,224 @@ export default function ExportPage() {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Procurement Values Breakdown - Scratch vs Processed */}
+          {totalSpent > 0 && (() => {
+            // Compute scratch vs processed totals across all categories
+            let totalScratchCost = 0;
+            let totalProcessedCost = 0;
+            let totalScratchServings = 0;
+            let totalProcessedServings = 0;
+            
+            const categoryBreakdowns: { category: string; scratchCost: number; processedCost: number; scratchPct: number }[] = [];
+            
+            Object.entries(allocations).forEach(([category, data]) => {
+              const sc = data.scratchCost ?? data.totalCost;
+              const pc = data.processedCost ?? 0;
+              totalScratchCost += sc;
+              totalProcessedCost += pc;
+              totalScratchServings += (data.scratchServings ?? data.totalServings);
+              totalProcessedServings += (data.processedServings ?? 0);
+              categoryBreakdowns.push({
+                category,
+                scratchCost: sc,
+                processedCost: pc,
+                scratchPct: data.totalCost > 0 ? (sc / data.totalCost) * 100 : 100,
+              });
+            });
+            
+            const scratchPct = totalSpent > 0 ? (totalScratchCost / totalSpent) * 100 : 0;
+            const processedPct = 100 - scratchPct;
+            
+            // SVG donut chart calculations
+            const radius = 70;
+            const circumference = 2 * Math.PI * radius;
+            const scratchDash = (scratchPct / 100) * circumference;
+            
+            return (
+              <>
+                <Divider sx={{ mb: 3 }} />
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  🌿 Procurement Values Breakdown
+                </Typography>
+                
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
+                    gap: 4,
+                    mb: 3,
+                    p: 3,
+                    bgcolor: 'rgba(76, 175, 80, 0.03)',
+                    borderRadius: 3,
+                    border: '1px solid rgba(76, 175, 80, 0.15)',
+                  }}
+                >
+                  {/* Donut Chart */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="200" height="200" viewBox="0 0 200 200">
+                      {/* Background circle */}
+                      <circle cx="100" cy="100" r={radius} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="28" />
+                      {/* Processed segment (full circle, behind scratch) */}
+                      <circle
+                        cx="100" cy="100" r={radius}
+                        fill="none"
+                        stroke="rgba(255, 152, 0, 0.5)"
+                        strokeWidth="28"
+                        strokeDasharray={`${circumference} ${circumference}`}
+                        strokeDashoffset="0"
+                        transform="rotate(-90 100 100)"
+                        strokeLinecap="round"
+                      />
+                      {/* Scratch segment (on top) */}
+                      <circle
+                        cx="100" cy="100" r={radius}
+                        fill="none"
+                        stroke="rgba(76, 175, 80, 0.85)"
+                        strokeWidth="28"
+                        strokeDasharray={`${scratchDash} ${circumference - scratchDash}`}
+                        strokeDashoffset="0"
+                        transform="rotate(-90 100 100)"
+                        strokeLinecap="round"
+                      />
+                      {/* Center text */}
+                      <text x="100" y="90" textAnchor="middle" fontSize="30" fontWeight="700" fill="rgba(76, 175, 80, 0.9)" fontFamily="Google Sans, sans-serif">
+                        {scratchPct.toFixed(0)}%
+                      </text>
+                      <text x="100" y="112" textAnchor="middle" fontSize="12" fill="rgba(97, 97, 97, 0.7)" fontFamily="Google Sans, sans-serif">
+                        Scratch
+                      </text>
+                      <text x="100" y="126" textAnchor="middle" fontSize="11" fill="rgba(97, 97, 97, 0.5)" fontFamily="Google Sans, sans-serif">
+                        Cooking
+                      </text>
+                    </svg>
+                    
+                    {/* Legend */}
+                    <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'rgba(76, 175, 80, 0.85)' }} />
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Scratch</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'rgba(255, 152, 0, 0.5)' }} />
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Processed</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                  
+                  {/* Summary Stats */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+                    {/* Scratch Cooking Row */}
+                    <Box sx={{ p: 2, bgcolor: 'rgba(76, 175, 80, 0.08)', borderRadius: 2, border: '1px solid rgba(76, 175, 80, 0.2)' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(76, 175, 80, 0.9)' }}>
+                          🥘 Scratch Cooking Ingredients
+                        </Typography>
+                        <Chip size="small" label={`${scratchPct.toFixed(1)}%`} sx={{ bgcolor: 'rgba(76, 175, 80, 0.15)', color: 'rgba(76, 175, 80, 0.9)', fontWeight: 700 }} />
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 3 }}>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Cost</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 600, color: 'rgba(76, 175, 80, 0.9)' }}>
+                            ${totalScratchCost.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Servings</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                            {totalScratchServings.toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      {/* Progress bar */}
+                      <Box sx={{ mt: 1.5, height: 8, borderRadius: 4, bgcolor: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                        <Box sx={{ height: '100%', width: `${scratchPct}%`, bgcolor: 'rgba(76, 175, 80, 0.7)', borderRadius: 4, transition: 'width 0.5s ease' }} />
+                      </Box>
+                    </Box>
+                    
+                    {/* Processed Row */}
+                    <Box sx={{ p: 2, bgcolor: 'rgba(255, 152, 0, 0.06)', borderRadius: 2, border: '1px solid rgba(255, 152, 0, 0.15)' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(255, 152, 0, 0.85)' }}>
+                          📦 Processed Ingredients
+                        </Typography>
+                        <Chip size="small" label={`${processedPct.toFixed(1)}%`} sx={{ bgcolor: 'rgba(255, 152, 0, 0.12)', color: 'rgba(255, 152, 0, 0.9)', fontWeight: 700 }} />
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 3 }}>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Cost</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 600, color: 'rgba(255, 152, 0, 0.85)' }}>
+                            ${totalProcessedCost.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Servings</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                            {totalProcessedServings.toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      {/* Progress bar */}
+                      <Box sx={{ mt: 1.5, height: 8, borderRadius: 4, bgcolor: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                        <Box sx={{ height: '100%', width: `${processedPct}%`, bgcolor: 'rgba(255, 152, 0, 0.5)', borderRadius: 4, transition: 'width 0.5s ease' }} />
+                      </Box>
+                    </Box>
+                    
+                    {/* Recommendation nudge */}
+                    {processedPct > 30 && (
+                      <Box sx={{ p: 1.5, bgcolor: 'rgba(255, 243, 224, 0.8)', borderRadius: 2, border: '1px solid rgba(255, 152, 0, 0.2)' }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(230, 126, 0, 0.9)' }}>
+                          💡 <strong>Tip:</strong> Consider shifting more procurement toward scratch cooking ingredients for better nutrition, cost savings, and values alignment.
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+                
+                {/* Per-Category Scratch vs Processed Breakdown */}
+                <TableContainer sx={{ mb: 3 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'rgba(76, 175, 80, 0.05)' }}>
+                        <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600, color: 'rgba(76, 175, 80, 0.8)' }}>Scratch $</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600, color: 'rgba(255, 152, 0, 0.8)' }}>Processed $</TableCell>
+                        <TableCell sx={{ fontWeight: 600, width: '30%' }}>Scratch Ratio</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {categoryBreakdowns.map(({ category, scratchCost: sc, processedCost: pc, scratchPct: sp }) => (
+                        <TableRow key={category}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography>{categoryEmojis[category] || '📦'}</Typography>
+                              <Typography sx={{ textTransform: 'capitalize' }}>{category}</Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right" sx={{ color: 'rgba(76, 175, 80, 0.9)', fontWeight: 500 }}>
+                            ${sc.toLocaleString()}
+                          </TableCell>
+                          <TableCell align="right" sx={{ color: 'rgba(255, 152, 0, 0.8)', fontWeight: 500 }}>
+                            ${pc.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ flex: 1, height: 10, borderRadius: 5, bgcolor: 'rgba(255, 152, 0, 0.2)', overflow: 'hidden' }}>
+                                <Box sx={{ height: '100%', width: `${sp}%`, bgcolor: 'rgba(76, 175, 80, 0.7)', borderRadius: 5, transition: 'width 0.5s ease' }} />
+                              </Box>
+                              <Typography variant="caption" sx={{ fontWeight: 600, minWidth: 36, textAlign: 'right' }}>
+                                {sp.toFixed(0)}%
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            );
+          })()}
 
           {/* Detailed Items with WBSCM IDs */}
           {allItems.length > 0 && (
