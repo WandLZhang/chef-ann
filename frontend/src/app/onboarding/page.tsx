@@ -63,12 +63,12 @@ interface DistrictProfile {
   districtName: string;
   gradeLevels: string[];
   enrollmentByGrade: Record<string, number>;
-  servingDays: number;
-  participationRate: number;
+  servingDays: number | '';
+  participationRate: number | '';
   demographics: {
-    freeRate: number;
-    reducedRate: number;
-    paidRate: number;
+    freeRate: number | '';
+    reducedRate: number | '';
+    paidRate: number | '';
   };
   // Calculated fields
   adpByGrade: Record<string, number>;
@@ -111,14 +111,15 @@ export default function OnboardingPage() {
   const [activeStep, setActiveStep] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const [scratchScore, setScratchScore] = useState(0);
+  const [showValidation, setShowValidation] = useState(false);
   
   const [profile, setProfile] = useState<DistrictProfile>({
     districtName: '',
     gradeLevels: [],
     enrollmentByGrade: {},
-    servingDays: 180,
-    participationRate: 75,
-    demographics: { ...DEFAULT_DEMOGRAPHICS },
+    servingDays: '',
+    participationRate: '',
+    demographics: { freeRate: '', reducedRate: '', paidRate: '' },
     adpByGrade: {},
     totalEnrollment: 0,
     totalAdp: 0,
@@ -133,8 +134,12 @@ export default function OnboardingPage() {
   useEffect(() => {
     const { enrollmentByGrade, servingDays, participationRate } = profile;
     
+    // Guard against blank values — treat '' as 0 for calculation purposes
+    const safeParticipation = typeof participationRate === 'number' ? participationRate : 0;
+    const safeServingDays = typeof servingDays === 'number' ? servingDays : 0;
+    
     // Simple participation calculation: ADP = enrollment × participationRate
-    const participationDecimal = participationRate / 100;
+    const participationDecimal = safeParticipation / 100;
     
     // Calculate ADP for each grade
     const newAdpByGrade: Record<string, number> = {};
@@ -148,7 +153,7 @@ export default function OnboardingPage() {
       totalAdp += adp;
     });
     
-    const annualMeals = totalAdp * servingDays;
+    const annualMeals = totalAdp * safeServingDays;
     
     // Only update if values actually changed to avoid infinite loop
     if (
@@ -193,6 +198,40 @@ export default function OnboardingPage() {
   }, [activeStep]);
 
   const handleNext = () => {
+    // Validate step 1 (Enrollment & Meals) — warn if critical fields are blank
+    if (activeStep === 1) {
+      const missingFields: string[] = [];
+      
+      if (profile.gradeLevels.length === 0) {
+        missingFields.push('grade levels');
+      } else {
+        const missingEnrollment = profile.gradeLevels.filter(
+          (g) => !profile.enrollmentByGrade[g] || profile.enrollmentByGrade[g] <= 0
+        );
+        if (missingEnrollment.length > 0) {
+          const labels = missingEnrollment.map(
+            (g) => gradeOptions.find((opt) => opt.id === g)?.label
+          ).join(', ');
+          missingFields.push(`enrollment for ${labels}`);
+        }
+      }
+      if (profile.servingDays === '') missingFields.push('serving days per year');
+      if (profile.participationRate === '') missingFields.push('participation rate');
+      
+      if (missingFields.length > 0) {
+        setShowValidation(true);
+        // Gentle shake animation on the card
+        if (cardRef.current) {
+          gsap.to(cardRef.current, {
+            x: -6, duration: 0.08, yoyo: true, repeat: 5,
+            onComplete: () => gsap.set(cardRef.current, { x: 0 }),
+          });
+        }
+        return; // Don't proceed
+      }
+      setShowValidation(false);
+    }
+    
     if (activeStep === steps.length - 1) {
       localStorage.setItem('districtProfile', JSON.stringify(profile));
       gsap.to(cardRef.current, {
@@ -206,7 +245,10 @@ export default function OnboardingPage() {
         opacity: 0,
         y: -20,
         duration: 0.3,
-        onComplete: () => setActiveStep((prev) => prev + 1),
+        onComplete: () => {
+          setShowValidation(false);
+          setActiveStep((prev) => prev + 1);
+        },
       });
     }
   };
@@ -229,12 +271,25 @@ export default function OnboardingPage() {
   };
 
   const toggleGrade = (gradeId: string) => {
-    setProfile((prev) => ({
-      ...prev,
-      gradeLevels: prev.gradeLevels.includes(gradeId)
-        ? prev.gradeLevels.filter((g) => g !== gradeId)
-        : [...prev.gradeLevels, gradeId],
-    }));
+    setProfile((prev) => {
+      const isSelected = prev.gradeLevels.includes(gradeId);
+      if (isSelected) {
+        // Deselecting: remove grade AND its enrollment/ADP data so totals recalculate correctly
+        const { [gradeId]: _removedEnroll, ...remainingEnrollment } = prev.enrollmentByGrade;
+        const { [gradeId]: _removedAdp, ...remainingAdp } = prev.adpByGrade;
+        return {
+          ...prev,
+          gradeLevels: prev.gradeLevels.filter((g) => g !== gradeId),
+          enrollmentByGrade: remainingEnrollment,
+          adpByGrade: remainingAdp,
+        };
+      } else {
+        return {
+          ...prev,
+          gradeLevels: [...prev.gradeLevels, gradeId],
+        };
+      }
+    });
   };
 
   const toggleEquipment = (equipId: string) => {
@@ -277,7 +332,7 @@ export default function OnboardingPage() {
               value={profile.districtName}
               onChange={(e) => setProfile({ ...profile, districtName: e.target.value })}
               sx={{ mb: 3 }}
-              placeholder="e.g., Austin ISD"
+              InputLabelProps={{ shrink: true }}
             />
             <TextField
               fullWidth
@@ -285,15 +340,15 @@ export default function OnboardingPage() {
               value={profile.sites}
               onChange={(e) => setProfile({ ...profile, sites: e.target.value })}
               sx={{ mb: 3 }}
-              placeholder="e.g., 45 sites (5 production, 40 satellite)"
+              InputLabelProps={{ shrink: true }}
             />
             <TextField
               fullWidth
               label="Current Food Cost Percentage"
               value={profile.foodCostPercentage}
               onChange={(e) => setProfile({ ...profile, foodCostPercentage: e.target.value })}
-              placeholder="e.g., 48"
               helperText="Industry range: 40-55% of reimbursement"
+              InputLabelProps={{ shrink: true }}
               InputProps={{
                 endAdornment: <Typography sx={{ color: 'text.secondary' }}>%</Typography>,
               }}
@@ -362,15 +417,17 @@ export default function OnboardingPage() {
                         label={`${grade?.label} Enrollment`}
                         type="number"
                         value={profile.enrollmentByGrade[gradeId] || ''}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const parsed = parseInt(e.target.value);
                           setProfile({
                             ...profile,
                             enrollmentByGrade: {
                               ...profile.enrollmentByGrade,
-                              [gradeId]: parseInt(e.target.value) || 0,
+                              [gradeId]: isNaN(parsed) ? 0 : parsed,
                             },
-                          })
-                        }
+                          });
+                        }}
+                        InputLabelProps={{ shrink: true }}
                         InputProps={{
                           inputProps: { min: 0 }
                         }}
@@ -386,14 +443,18 @@ export default function OnboardingPage() {
                   label="Serving Days per Year"
                   type="number"
                   value={profile.servingDays}
-                  onChange={(e) =>
-                    setProfile({
-                      ...profile,
-                      servingDays: parseInt(e.target.value) || 180,
-                    })
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setProfile({ ...profile, servingDays: '' });
+                    } else {
+                      const parsed = parseInt(val);
+                      setProfile({ ...profile, servingDays: isNaN(parsed) ? '' : parsed });
+                    }
+                  }}
                   helperText="Typical: 180 days for lunch program"
                   sx={{ mb: 2 }}
+                  InputLabelProps={{ shrink: true }}
                   InputProps={{
                     inputProps: { min: 1, max: 365 }
                   }}
@@ -409,15 +470,19 @@ export default function OnboardingPage() {
                     label="Free %"
                     type="number"
                     value={profile.demographics.freeRate}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        demographics: {
-                          ...profile.demographics,
-                          freeRate: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
-                        },
-                      })
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setProfile({ ...profile, demographics: { ...profile.demographics, freeRate: '' } });
+                      } else {
+                        const parsed = parseInt(val);
+                        setProfile({
+                          ...profile,
+                          demographics: { ...profile.demographics, freeRate: isNaN(parsed) ? '' : Math.min(100, Math.max(0, parsed)) },
+                        });
+                      }
+                    }}
+                    InputLabelProps={{ shrink: true }}
                     InputProps={{ inputProps: { min: 0, max: 100 } }}
                   />
                   <TextField
@@ -425,15 +490,19 @@ export default function OnboardingPage() {
                     label="Reduced %"
                     type="number"
                     value={profile.demographics.reducedRate}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        demographics: {
-                          ...profile.demographics,
-                          reducedRate: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
-                        },
-                      })
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setProfile({ ...profile, demographics: { ...profile.demographics, reducedRate: '' } });
+                      } else {
+                        const parsed = parseInt(val);
+                        setProfile({
+                          ...profile,
+                          demographics: { ...profile.demographics, reducedRate: isNaN(parsed) ? '' : Math.min(100, Math.max(0, parsed)) },
+                        });
+                      }
+                    }}
+                    InputLabelProps={{ shrink: true }}
                     InputProps={{ inputProps: { min: 0, max: 100 } }}
                   />
                   <TextField
@@ -441,15 +510,19 @@ export default function OnboardingPage() {
                     label="Paid %"
                     type="number"
                     value={profile.demographics.paidRate}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        demographics: {
-                          ...profile.demographics,
-                          paidRate: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
-                        },
-                      })
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setProfile({ ...profile, demographics: { ...profile.demographics, paidRate: '' } });
+                      } else {
+                        const parsed = parseInt(val);
+                        setProfile({
+                          ...profile,
+                          demographics: { ...profile.demographics, paidRate: isNaN(parsed) ? '' : Math.min(100, Math.max(0, parsed)) },
+                        });
+                      }
+                    }}
+                    InputLabelProps={{ shrink: true }}
                     InputProps={{ inputProps: { min: 0, max: 100 } }}
                   />
                 </Box>
@@ -461,14 +534,18 @@ export default function OnboardingPage() {
                   label="Average Daily Participation Rate (%)"
                   type="number"
                   value={profile.participationRate}
-                  onChange={(e) =>
-                    setProfile({
-                      ...profile,
-                      participationRate: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
-                    })
-                  }
-                  helperText="What percentage of enrolled students typically eat lunch? Industry average: 70-80%"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setProfile({ ...profile, participationRate: '' });
+                    } else {
+                      const parsed = parseInt(val);
+                      setProfile({ ...profile, participationRate: isNaN(parsed) ? '' : Math.min(100, Math.max(0, parsed)) });
+                    }
+                  }}
+                  helperText="Industry average: 70-80%"
                   sx={{ mb: 3 }}
+                  InputLabelProps={{ shrink: true }}
                   InputProps={{
                     inputProps: { min: 0, max: 100 },
                     endAdornment: <Typography sx={{ color: 'text.secondary' }}>%</Typography>,
@@ -738,6 +815,26 @@ export default function OnboardingPage() {
           }}
         >
           {renderStepContent()}
+
+          {/* Validation Warning */}
+          {showValidation && activeStep === 1 && (
+            <Box
+              sx={{
+                mt: 2,
+                p: 1.5,
+                bgcolor: 'rgba(255, 152, 0, 0.08)',
+                borderRadius: 2,
+                border: '1px solid rgba(255, 152, 0, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <Typography variant="body2" sx={{ color: 'rgba(230, 81, 0, 0.9)', fontSize: '0.8rem' }}>
+                ⚠️ Please fill in all required fields above before continuing. Empty fields will produce inaccurate meal projections.
+              </Typography>
+            </Box>
+          )}
 
           {/* Navigation */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, alignItems: 'center' }}>
