@@ -26,6 +26,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import CalculationTooltip from '@/components/CalculationTooltip';
 
 const steps = ['District Info', 'Enrollment & Meals', 'Kitchen Equipment', 'Allergens'];
 
@@ -224,7 +225,7 @@ export default function OnboardingPage() {
         if (cardRef.current) {
           gsap.to(cardRef.current, {
             x: -6, duration: 0.08, yoyo: true, repeat: 5,
-            onComplete: () => gsap.set(cardRef.current, { x: 0 }),
+            onComplete: () => { gsap.set(cardRef.current, { x: 0 }); },
           });
         }
         return; // Don't proceed
@@ -567,9 +568,23 @@ export default function OnboardingPage() {
                     </Typography>
                     
                     <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5, fontSize: '0.75rem' }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        Total Enrollment:
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Total Enrollment:
+                        </Typography>
+                        <CalculationTooltip
+                          iconSize={13}
+                          provenance={{
+                            formula: 'Σ Enrollment by Grade Level',
+                            inputs: Object.entries(profile.enrollmentByGrade).map(([grade, count]) => ({
+                              label: gradeOptions.find(g => g.id === grade)?.label || grade,
+                              value: count,
+                              source: 'User input (Step 2)',
+                            })),
+                            steps: `${Object.values(profile.enrollmentByGrade).join(' + ')} = ${profile.totalEnrollment.toLocaleString()} students`,
+                          }}
+                        />
+                      </Box>
                       <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
                         {profile.totalEnrollment.toLocaleString()} students
                       </Typography>
@@ -581,9 +596,23 @@ export default function OnboardingPage() {
                         {profile.participationRate}%
                       </Typography>
                       
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        Average Daily Participation:
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Average Daily Participation:
+                        </Typography>
+                        <CalculationTooltip
+                          iconSize={13}
+                          provenance={{
+                            formula: 'Total Enrollment × Participation Rate',
+                            inputs: [
+                              { label: 'Total Enrollment', value: profile.totalEnrollment, source: 'Sum of grade enrollments' },
+                              { label: 'Participation Rate', value: `${profile.participationRate}%`, source: 'User input (Step 2)' },
+                            ],
+                            steps: `${profile.totalEnrollment.toLocaleString()} × ${profile.participationRate}% = ${profile.totalAdp.toLocaleString()} students/day`,
+                            source: 'Industry average participation rate: 70-80%',
+                          }}
+                        />
+                      </Box>
                       <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
                         {profile.totalAdp.toLocaleString()} students
                       </Typography>
@@ -598,16 +627,27 @@ export default function OnboardingPage() {
                     
                     <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed rgba(33, 150, 243, 0.3)' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="caption" sx={{ color: 'rgba(33, 150, 243, 0.9)', fontWeight: 600 }}>
-                          ANNUAL MEALS:
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="caption" sx={{ color: 'rgba(33, 150, 243, 0.9)', fontWeight: 600 }}>
+                            ANNUAL MEALS:
+                          </Typography>
+                          <CalculationTooltip
+                            iconSize={14}
+                            provenance={{
+                              formula: 'Average Daily Participation × Serving Days',
+                              inputs: [
+                                { label: 'Average Daily Participation (ADP)', value: profile.totalAdp, source: `${profile.totalEnrollment.toLocaleString()} enrolled × ${profile.participationRate}% rate` },
+                                { label: 'Serving Days per Year', value: Number(profile.servingDays) || 0, source: 'User input (Step 2)' },
+                              ],
+                              steps: `${profile.totalAdp.toLocaleString()} ADP × ${profile.servingDays} days = ${profile.totalAnnualMeals.toLocaleString()} meals/year`,
+                              source: 'Standard USDA NSLP meal projection methodology',
+                            }}
+                          />
+                        </Box>
                         <Typography variant="body1" sx={{ fontWeight: 700, color: 'rgba(33, 150, 243, 0.9)' }}>
                           {profile.totalAnnualMeals.toLocaleString()}
                         </Typography>
                       </Box>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', display: 'block', mt: 0.5 }}>
-                        Formula: {profile.totalAdp.toLocaleString()} ADP × {profile.servingDays} days
-                      </Typography>
                     </Box>
                   </Box>
                 )}

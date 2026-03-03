@@ -21,11 +21,17 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SpaOutlinedIcon from '@mui/icons-material/SpaOutlined';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import PlannerStepper from '@/components/PlannerStepper';
+import CalculationTooltip from '@/components/CalculationTooltip';
 
 interface DistrictProfile {
   districtName: string;
   gradeLevels: string[];
   adpByGrade: Record<string, number>;
+  totalAnnualMeals?: number;
+  totalAdp?: number;
+  totalEnrollment?: number;
+  participationRate?: number;
+  servingDays?: number;
 }
 
 interface CategoryAllocation {
@@ -78,12 +84,16 @@ export default function PlannerPage() {
     }
   }, []);
 
-  // Entitlement calculation
-  const entitlement = 485000;
-  const dodFresh = entitlement * 0.2;
-  const brownBox = entitlement * 0.8;
+  // Entitlement calculation — dynamic: Annual Meals × USDA commodity value per meal
+  const COMMODITY_VALUE_PER_MEAL = 0.45; // USDA FNS, effective July 2025
+  const annualMeals = profile?.totalAnnualMeals || (totalADP * 180);
+  const entitlement = Math.round(annualMeals * COMMODITY_VALUE_PER_MEAL);
+  const dodFreshPct = 0.2;
+  const brownBoxPct = 0.8;
+  const dodFresh = Math.round(entitlement * dodFreshPct);
+  const brownBox = Math.round(entitlement * brownBoxPct);
   const remaining = entitlement - totalSpent;
-  const progressPct = (totalSpent / entitlement) * 100;
+  const progressPct = entitlement > 0 ? (totalSpent / entitlement) * 100 : 0;
 
   const categories = [
     { name: 'Beef', emoji: '🥩', slug: 'beef' },
@@ -227,9 +237,24 @@ export default function PlannerPage() {
             }}
           >
             <Box sx={{ p: 3, bgcolor: 'rgba(76, 175, 80, 0.08)', borderRadius: 3 }}>
-              <Typography variant="caption" sx={{ color: 'rgba(76, 175, 80, 0.7)' }}>
-                Total Entitlement
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: 'rgba(76, 175, 80, 0.7)' }}>
+                  Total Entitlement
+                </Typography>
+                <CalculationTooltip
+                  iconSize={14}
+                  iconColor="rgba(76, 175, 80, 0.5)"
+                  provenance={{
+                    formula: 'Annual Meals × USDA Commodity Value per Meal',
+                    inputs: [
+                      { label: 'Annual Meals', value: annualMeals.toLocaleString(), source: 'From onboarding: ADP × serving days' },
+                      { label: 'Commodity Value per Meal', value: `$${COMMODITY_VALUE_PER_MEAL.toFixed(2)}`, source: 'USDA FNS Federal Register, eff. July 2025' },
+                    ],
+                    steps: `${annualMeals.toLocaleString()} meals × $${COMMODITY_VALUE_PER_MEAL.toFixed(2)} = $${entitlement.toLocaleString()}`,
+                    source: 'USDA Foods in Schools, FAL SY26-27',
+                  }}
+                />
+              </Box>
               <Typography
                 variant="h4"
                 sx={{ fontWeight: 500, color: 'rgba(76, 175, 80, 0.9)', fontFamily: '"Google Sans", sans-serif' }}
@@ -238,17 +263,47 @@ export default function PlannerPage() {
               </Typography>
             </Box>
             <Box sx={{ p: 3, bgcolor: 'rgba(255, 183, 77, 0.1)', borderRadius: 3 }}>
-              <Typography variant="caption" sx={{ color: 'rgba(255, 152, 0, 0.7)' }}>
-                DoD Fresh (20%)
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: 'rgba(255, 152, 0, 0.7)' }}>
+                  DoD Fresh (20%)
+                </Typography>
+                <CalculationTooltip
+                  iconSize={14}
+                  iconColor="rgba(255, 152, 0, 0.5)"
+                  provenance={{
+                    formula: 'Total Entitlement × 20%',
+                    inputs: [
+                      { label: 'Total Entitlement', value: `$${entitlement.toLocaleString()}`, source: 'Annual meals × commodity value' },
+                      { label: 'DoD Fresh %', value: '20%', source: 'Standard DoD Fresh Fruit & Vegetable Program allocation' },
+                    ],
+                    steps: `$${entitlement.toLocaleString()} × 20% = $${dodFresh.toLocaleString()}`,
+                    source: 'USDA DoD Fresh Fruit and Vegetable Program',
+                  }}
+                />
+              </Box>
               <Typography variant="h5" sx={{ fontWeight: 500, fontFamily: '"Google Sans", sans-serif' }}>
                 ${dodFresh.toLocaleString()}
               </Typography>
             </Box>
             <Box sx={{ p: 3, bgcolor: 'rgba(100, 181, 246, 0.1)', borderRadius: 3 }}>
-              <Typography variant="caption" sx={{ color: 'rgba(33, 150, 243, 0.7)' }}>
-                Brown Box (80%)
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: 'rgba(33, 150, 243, 0.7)' }}>
+                  Brown Box (80%)
+                </Typography>
+                <CalculationTooltip
+                  iconSize={14}
+                  iconColor="rgba(33, 150, 243, 0.5)"
+                  provenance={{
+                    formula: 'Total Entitlement × 80%',
+                    inputs: [
+                      { label: 'Total Entitlement', value: `$${entitlement.toLocaleString()}`, source: 'Annual meals × commodity value' },
+                      { label: 'Brown Box %', value: '80%', source: 'Remainder after DoD Fresh allocation' },
+                    ],
+                    steps: `$${entitlement.toLocaleString()} × 80% = $${brownBox.toLocaleString()}`,
+                    source: 'USDA Foods traditional "brown box" commodity ordering',
+                  }}
+                />
+              </Box>
               <Typography variant="h5" sx={{ fontWeight: 500, fontFamily: '"Google Sans", sans-serif' }}>
                 ${brownBox.toLocaleString()}
               </Typography>
@@ -278,16 +333,30 @@ export default function PlannerPage() {
               Entitlement Tracker
             </Typography>
             <Box sx={{ textAlign: 'right' }}>
-              <Typography
-                variant="h5"
-                sx={{
-                  fontWeight: 600,
-                  color: progressPct > 95 ? 'rgba(76, 175, 80, 0.9)' : 'rgba(33, 33, 33, 0.8)',
-                  fontFamily: '"Google Sans", sans-serif',
-                }}
-              >
-                {progressPct.toFixed(1)}%
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 600,
+                    color: progressPct > 95 ? 'rgba(76, 175, 80, 0.9)' : 'rgba(33, 33, 33, 0.8)',
+                    fontFamily: '"Google Sans", sans-serif',
+                  }}
+                >
+                  {progressPct.toFixed(1)}%
+                </Typography>
+                <CalculationTooltip
+                  iconSize={14}
+                  provenance={{
+                    formula: '(Total Allocated ÷ Total Entitlement) × 100',
+                    inputs: [
+                      { label: 'Total Allocated', value: `$${totalSpent.toLocaleString()}`, source: 'Sum of all category allocations' },
+                      { label: 'Total Entitlement', value: `$${entitlement.toLocaleString()}`, source: `${annualMeals.toLocaleString()} meals × $${COMMODITY_VALUE_PER_MEAL}` },
+                    ],
+                    steps: `($${totalSpent.toLocaleString()} ÷ $${entitlement.toLocaleString()}) × 100 = ${progressPct.toFixed(1)}%`,
+                    source: 'Target: 98-100% utilization (unused entitlement does not roll over)',
+                  }}
+                />
+              </Box>
               <Typography variant="caption" sx={{ color: 'rgba(97, 97, 97, 0.6)' }}>
                 utilized
               </Typography>

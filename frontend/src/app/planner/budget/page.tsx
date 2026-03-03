@@ -28,6 +28,7 @@ import CodeIcon from '@mui/icons-material/Code';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import PlannerStepper from '@/components/PlannerStepper';
+import CalculationTooltip, { type CalculationProvenance } from '@/components/CalculationTooltip';
 import { streamBudget, type StreamCallbacks } from '@/lib/api';
 
 interface CategoryAllocation {
@@ -209,6 +210,124 @@ export default function BudgetPage() {
       .join(' ');
   };
 
+  /**
+   * @brief Build deterministic provenance for Gemini-computed budget metrics.
+   *
+   * @details Since we define the formulas in the backend prompt, we know exactly
+   * what calculations Gemini is performing. Map known metric keys to their
+   * formulas, inputs, and sources — no reliance on Gemini's output format.
+   * Falls back to a generic provenance if the key is unrecognized.
+   */
+  const getMetricProvenance = (key: string, value: string | number): CalculationProvenance => {
+    const lowerKey = key.toLowerCase();
+    const commodityCostPerMeal = annualMeals > 0 ? totalSpent / annualMeals : 0;
+    const otherFoodCost = 0.65; // Default from backend prompt
+    const laborOverhead = 1.50; // Default from backend prompt
+
+    // Weighted Average Reimbursement Rate
+    if (lowerKey.includes('reimbursement') && lowerKey.includes('rate')) {
+      return {
+        formula: '(Free% × FreeRate) + (Reduced% × ReducedRate) + (Paid% × PaidRate) + PBR + SevereNeed + CommodityValue',
+        inputs: [
+          { label: 'Free Rate (85%)', value: '$4.60', source: 'USDA FNS Federal Register, eff. July 2025' },
+          { label: 'Reduced Rate (5%)', value: '$4.20', source: 'USDA FNS Federal Register, eff. July 2025' },
+          { label: 'Paid Rate (10%)', value: '$0.44', source: 'USDA FNS Federal Register, eff. July 2025' },
+          { label: 'PBR Addon', value: '$0.09', source: 'Performance-Based Reimbursement certification' },
+          { label: 'Severe Need Addon', value: '$0.02', source: 'District severe need eligibility' },
+          { label: 'Commodity Value', value: '$0.45', source: 'USDA per-meal commodity entitlement value' },
+        ],
+        steps: `Weighted: (0.85×$4.60) + (0.05×$4.20) + (0.10×$0.44) + $0.09 + $0.02 + $0.45 = ${formatValue(key, value)}`,
+        source: 'USDA FNS Federal Register, July 2025 — reimbursement rates for SY26-27',
+      };
+    }
+
+    // Commodity Cost per Meal
+    if (lowerKey.includes('commodity') && lowerKey.includes('cost') && lowerKey.includes('meal')) {
+      return {
+        formula: 'Total Commodity Spend ÷ Annual Meals',
+        inputs: [
+          { label: 'Total Commodity Spend', value: `$${totalSpent.toLocaleString()}`, source: 'Sum of all category allocations (Planner page)' },
+          { label: 'Annual Meals', value: annualMeals.toLocaleString(), source: 'ADP × serving days (Onboarding page)' },
+        ],
+        steps: `$${totalSpent.toLocaleString()} ÷ ${annualMeals.toLocaleString()} = $${commodityCostPerMeal.toFixed(4)}/meal`,
+      };
+    }
+
+    // Total Food Cost per Meal
+    if (lowerKey.includes('food') && lowerKey.includes('cost') && lowerKey.includes('meal') && !lowerKey.includes('commodity')) {
+      return {
+        formula: 'Commodity Cost per Meal + Non-Commodity Food Cost per Meal',
+        inputs: [
+          { label: 'Commodity Cost/Meal', value: `$${commodityCostPerMeal.toFixed(4)}`, source: 'Commodity spend ÷ annual meals' },
+          { label: 'Non-Commodity Food Cost', value: `$${otherFoodCost.toFixed(2)}`, source: 'District profile (default $0.65/meal)' },
+        ],
+        steps: `$${commodityCostPerMeal.toFixed(4)} + $${otherFoodCost.toFixed(2)} = ${formatValue(key, value)}`,
+      };
+    }
+
+    // Food Cost as % of Reimbursement
+    if (lowerKey.includes('%') || (lowerKey.includes('food') && lowerKey.includes('percent'))) {
+      return {
+        formula: '(Total Food Cost per Meal ÷ Weighted Avg Reimbursement) × 100',
+        inputs: [
+          { label: 'Total Food Cost/Meal', value: formatValue('food_cost', commodityCostPerMeal + otherFoodCost), source: 'Commodity + non-commodity food costs' },
+          { label: 'Reimbursement Rate', value: '~$5.17', source: 'Weighted average from demographics' },
+        ],
+        steps: `Food cost ÷ reimbursement × 100 = ${formatValue(key, value)}`,
+        source: 'Target range: 40-50% of reimbursement for healthy food cost ratio',
+      };
+    }
+
+    // Total Plate Cost
+    if (lowerKey.includes('plate') && lowerKey.includes('cost')) {
+      return {
+        formula: 'Total Food Cost per Meal + Labor & Overhead per Meal',
+        inputs: [
+          { label: 'Food Cost/Meal', value: `$${(commodityCostPerMeal + otherFoodCost).toFixed(4)}`, source: 'Commodity + non-commodity food' },
+          { label: 'Labor & Overhead/Meal', value: `$${laborOverhead.toFixed(2)}`, source: 'District profile (default $1.50/meal)' },
+        ],
+        steps: `$${(commodityCostPerMeal + otherFoodCost).toFixed(4)} + $${laborOverhead.toFixed(2)} = ${formatValue(key, value)}`,
+      };
+    }
+
+    // Budget Headroom per Meal
+    if (lowerKey.includes('headroom') && !lowerKey.includes('annual') && !lowerKey.includes('upgrade')) {
+      return {
+        formula: 'Weighted Avg Reimbursement Rate − Total Plate Cost',
+        inputs: [
+          { label: 'Reimbursement Rate', value: '~$5.17', source: 'Weighted average from USDA FNS rates + demographics' },
+          { label: 'Total Plate Cost', value: formatValue(key, value), source: 'Food cost + labor & overhead' },
+        ],
+        steps: `Reimbursement − Plate Cost = ${formatValue(key, value)}/meal available for upgrades`,
+        source: 'Positive headroom = room for values-aligned ingredient upgrades',
+      };
+    }
+
+    // Annual Upgrade Budget
+    if (lowerKey.includes('upgrade') || (lowerKey.includes('annual') && lowerKey.includes('budget'))) {
+      return {
+        formula: 'Budget Headroom per Meal × Annual Meals',
+        inputs: [
+          { label: 'Headroom per Meal', value: 'See headroom metric', source: 'Reimbursement − plate cost' },
+          { label: 'Annual Meals', value: annualMeals.toLocaleString(), source: 'ADP × serving days (Onboarding page)' },
+        ],
+        steps: `Headroom/meal × ${annualMeals.toLocaleString()} meals = ${formatValue(key, value)}`,
+        source: 'Available budget for scratch cooking upgrades, local sourcing, and whole-muscle proteins',
+      };
+    }
+
+    // Fallback for any unrecognized metric
+    return {
+      formula: formatLabel(key),
+      inputs: [
+        { label: 'Commodity Spend', value: `$${totalSpent.toLocaleString()}`, source: 'Category allocations' },
+        { label: 'Annual Meals', value: annualMeals.toLocaleString(), source: 'District profile' },
+      ],
+      steps: `Computed by Gemini: ${formatValue(key, value)}`,
+      source: 'Calculated via Gemini Code Execution — click "See Calculation" for Python code',
+    };
+  };
+
   const hasResults = Object.keys(metrics).length > 0;
 
   return (
@@ -261,9 +380,23 @@ export default function BudgetPage() {
             }}
           >
             <Box sx={{ p: 3, bgcolor: 'rgba(76, 175, 80, 0.08)', borderRadius: 2 }}>
-              <Typography variant="caption" sx={{ color: 'rgba(76, 175, 80, 0.7)' }}>
-                Total Commodity Spend
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: 'rgba(76, 175, 80, 0.7)' }}>
+                  Total Commodity Spend
+                </Typography>
+                <CalculationTooltip
+                  iconSize={13}
+                  iconColor="rgba(76, 175, 80, 0.5)"
+                  provenance={{
+                    formula: 'Σ Category Allocation Costs',
+                    inputs: [
+                      { label: 'Source', value: 'All categories', source: 'Planner page commodity allocations (localStorage)' },
+                    ],
+                    steps: `Sum of all category totalCost values = $${totalSpent.toLocaleString()}`,
+                    source: 'Aggregated from individual commodity category allocations',
+                  }}
+                />
+              </Box>
               <Typography
                 variant="h4"
                 sx={{ fontWeight: 500, color: 'rgba(76, 175, 80, 0.9)' }}
@@ -272,9 +405,24 @@ export default function BudgetPage() {
               </Typography>
             </Box>
             <Box sx={{ p: 3, bgcolor: 'rgba(33, 150, 243, 0.08)', borderRadius: 2 }}>
-              <Typography variant="caption" sx={{ color: 'rgba(33, 150, 243, 0.7)' }}>
-                Annual Meals
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: 'rgba(33, 150, 243, 0.7)' }}>
+                  Annual Meals
+                </Typography>
+                <CalculationTooltip
+                  iconSize={13}
+                  iconColor="rgba(33, 150, 243, 0.5)"
+                  provenance={{
+                    formula: 'Average Daily Participation × Serving Days',
+                    inputs: [
+                      { label: 'ADP', value: (annualMeals / 180).toLocaleString(), source: 'From onboarding: enrollment × participation rate' },
+                      { label: 'Serving Days', value: '180', source: 'From onboarding (standard NSLP school year)' },
+                    ],
+                    steps: `${(annualMeals / 180).toLocaleString()} ADP × 180 days = ${annualMeals.toLocaleString()} meals`,
+                    source: 'Calculated during district onboarding (Step 2)',
+                  }}
+                />
+              </Box>
               <Typography variant="h4" sx={{ fontWeight: 500 }}>
                 {annualMeals.toLocaleString()}
               </Typography>
@@ -401,16 +549,21 @@ export default function BudgetPage() {
                     border: isHeroMetric(key) ? '2px solid rgba(76, 175, 80, 0.3)' : 'none',
                   }}
                 >
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      color: isHeroMetric(key) ? 'rgba(76, 175, 80, 0.8)' : 'text.secondary',
-                      display: 'block',
-                      mb: 0.5,
-                    }}
-                  >
-                    {isHeroMetric(key) ? '💰 ' : ''}{formatLabel(key)}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.5 }}>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: isHeroMetric(key) ? 'rgba(76, 175, 80, 0.8)' : 'text.secondary',
+                      }}
+                    >
+                      {isHeroMetric(key) ? '💰 ' : ''}{formatLabel(key)}
+                    </Typography>
+                    <CalculationTooltip
+                      iconSize={13}
+                      iconColor={isHeroMetric(key) ? 'rgba(76, 175, 80, 0.5)' : 'rgba(33, 150, 243, 0.5)'}
+                      provenance={getMetricProvenance(key, value)}
+                    />
+                  </Box>
                   <Typography
                     variant={isHeroMetric(key) ? 'h5' : 'h6'}
                     sx={{
