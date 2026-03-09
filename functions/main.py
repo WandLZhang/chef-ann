@@ -51,30 +51,10 @@ def load_json(filename: str) -> dict:
 # Pre-load data at cold start
 # Comprehensive data is SOURCE OF TRUTH (extracted from USDA Product Info Sheet PDFs)
 COMMODITIES_COMPREHENSIVE = load_json("usda_foods_comprehensive.json")
-COMMODITIES_LEGACY = load_json("usda_foods_sy26_27.json")  # Legacy - only used for est_cost_per_lb
 MEAL_PATTERNS = load_json("usda_meal_patterns.json")
 DISTRICT_PROFILE = load_json("district_profile.json")
-FBG_YIELDS = load_json("food_buying_guide_yields.json")
 
-# Build cost lookup from legacy data (only thing legacy has that comprehensive doesn't)
-def _build_cost_lookup(legacy_data: dict) -> dict:
-    """Build WBSCM ID → est_cost_per_lb lookup from legacy data."""
-    lookup = {}
-    def _extract(obj):
-        if isinstance(obj, list):
-            for item in obj:
-                _extract(item)
-        elif isinstance(obj, dict):
-            if 'wbscm_id' in obj and 'est_cost_per_lb' in obj:
-                lookup[str(obj['wbscm_id'])] = obj['est_cost_per_lb']
-            else:
-                for v in obj.values():
-                    _extract(v)
-    _extract(legacy_data)
-    return lookup
-
-COST_LOOKUP = _build_cost_lookup(COMMODITIES_LEGACY)
-logger.info(f"Built cost lookup with {len(COST_LOOKUP)} entries")
+logger.info(f"Loaded {len(COMMODITIES_COMPREHENSIVE.get('all_products', []))} comprehensive products")
 
 # Category mapping: frontend route slug → comprehensive JSON category key(s)
 # Verified from comprehensive JSON: beans(16), beef(10), cheese(14), dairy(4),
@@ -92,7 +72,7 @@ CATEGORY_MAP = {
     'other': ['other'],
 }
 
-# Default cost estimates by category ($/lb, used when no legacy match exists)
+# Default cost estimates by category ($/lb)
 DEFAULT_COST_PER_LB = {
     'beef': 3.25, 'poultry': 2.10, 'pork': 2.15, 'fish': 2.80,
     'cheese': 3.80, 'dairy': 3.50, 'eggs': 2.00,
@@ -166,42 +146,11 @@ def stream_gemini(prompt: str, enable_code_execution: bool = True):
         yield f'data: {json.dumps({"type": "error", "data": str(e)})}\n\n'
 
 
-def enrich_commodity(commodity: dict) -> dict:
-    """Enrich a commodity from usda_foods_sy26_27 with comprehensive data.
-    
-    Merges in servings_per_case, case_weight_lbs, serving_size_oz, cn_credit_oz,
-    cn_credit_category, pack_size_description, and source_url from 
-    usda_foods_comprehensive.json so the frontend has accurate USDA Product 
-    Info Sheet data for display (instead of falling back to estimates).
-    """
-    comprehensive_products = COMMODITIES_COMPREHENSIVE.get('all_products', [])
-    wbscm_id = str(commodity.get('wbscm_id', ''))
-    match = next((c for c in comprehensive_products if str(c.get('wbscm_id', '')) == wbscm_id), None)
-    if match:
-        enriched = dict(commodity)
-        # Add fields from comprehensive data that the frontend needs
-        for field in ['case_weight_lbs', 'servings_per_case', 'serving_size_oz',
-                      'cn_credit_oz', 'cn_credit_category', 'pack_size_description', 'source_url']:
-            if field in match and match[field] is not None:
-                enriched[field] = match[field]
-        return enriched
-    return commodity
-
-
-def enrich_commodity_list(commodities: list) -> list:
-    """Enrich a list of commodities with comprehensive data."""
-    return [enrich_commodity(c) for c in commodities]
-
-
 def _add_cost_to_product(product: dict) -> dict:
-    """Add est_cost_per_lb to a comprehensive product from legacy cost lookup."""
+    """Add est_cost_per_lb and caf_recommended to a comprehensive product using category defaults."""
     enriched = dict(product)
-    wbscm_id = str(product.get('wbscm_id', ''))
-    if wbscm_id in COST_LOOKUP:
-        enriched['est_cost_per_lb'] = COST_LOOKUP[wbscm_id]
-    else:
-        cat = product.get('category', 'other')
-        enriched['est_cost_per_lb'] = DEFAULT_COST_PER_LB.get(cat, 2.00)
+    cat = product.get('category', 'other')
+    enriched['est_cost_per_lb'] = DEFAULT_COST_PER_LB.get(cat, 2.00)
     # Derive caf_recommended from processing_level
     enriched['caf_recommended'] = product.get('processing_level', 'processed') == 'raw'
     return enriched
@@ -212,7 +161,7 @@ def handle_commodities(category=None):
     
     Serves directly from usda_foods_comprehensive.json (source of truth).
     Maps frontend route slugs to comprehensive JSON categories via CATEGORY_MAP.
-    Adds est_cost_per_lb from legacy data and derives caf_recommended from processing_level.
+    Adds est_cost_per_lb from category defaults and derives caf_recommended from processing_level.
     """
     comprehensive_cats = COMMODITIES_COMPREHENSIVE.get('products_by_category', {})
     
@@ -271,26 +220,21 @@ def handle_stream_allocate(data):
     oz_per_serving = data.get('oz_per_serving', 2.0)
     annual_meals = data.get('annual_meals', 3397500)
     
-    # Use comprehensive data if available (has servings_per_case from USDA Product Sheets)
+    # Use comprehensive data (source of truth — USDA Product Info Sheets)
     comprehensive_products = COMMODITIES_COMPREHENSIVE.get('all_products', [])
-    legacy_commodities = extract_all_commodities(COMMODITIES_LEGACY)
-    
     logger.info(f"Comprehensive data: {len(comprehensive_products)} products")
-    logger.info(f"Legacy data: {len(legacy_commodities)} commodities")
     
     items_data = []
     for item in items:
         wbscm_id = str(item.get('wbscm_id', ''))
-        # Frontend now sends quantity as cases, but support both for backwards compatibility
         quantity_cases = item.get('quantity_cases', item.get('quantity_lbs', 0))
         
-        # First try comprehensive data (has servings_per_case)
         commodity = next((c for c in comprehensive_products if str(c.get('wbscm_id', '')) == wbscm_id), None)
         
         if commodity:
-            # Use USDA Product Info Sheet data with servings_per_case
             case_weight = commodity.get('case_weight_lbs', 40)
             servings_per_case = commodity.get('servings_per_case')
+            cat = commodity.get('category', 'other')
             
             items_data.append({
                 "wbscm_id": wbscm_id,
@@ -301,28 +245,11 @@ def handle_stream_allocate(data):
                 "servings_per_case": servings_per_case,
                 "serving_size_oz": commodity.get('serving_size_oz', 2.0),
                 "cn_credit_oz": commodity.get('cn_credit_oz', 2.0),
-                "est_cost_per_lb": commodity.get('est_cost_per_lb', 3.0),  # Default if not in comprehensive
-                "yield_factor": commodity.get('yield_factor', 0.75),
+                "est_cost_per_lb": DEFAULT_COST_PER_LB.get(cat, 2.00),
                 "source": "usda_product_sheet"
             })
         else:
-            # Fallback to legacy data
-            legacy = next((c for c in legacy_commodities if str(c.get('wbscm_id', '')) == wbscm_id), None)
-            if legacy:
-                case_weight = 40  # Default case weight
-                items_data.append({
-                    "wbscm_id": wbscm_id,
-                    "description": legacy.get('description', 'Unknown'),
-                    "quantity_cases": quantity_cases,
-                    "case_weight_lbs": case_weight,
-                    "quantity_lbs": quantity_cases * case_weight,
-                    "servings_per_case": None,  # Will calculate from yield
-                    "est_cost_per_lb": legacy.get('est_cost_per_lb', 3.0),
-                    "yield_factor": legacy.get('yield_factor', 0.75),
-                    "source": "legacy_estimate"
-                })
-            else:
-                logger.warning(f"Commodity not found in any data source: {wbscm_id}")
+            logger.warning(f"Commodity not found in comprehensive data: {wbscm_id}")
     
     if not items_data:
         def error_gen():
