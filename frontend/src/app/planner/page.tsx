@@ -22,6 +22,7 @@ import SpaOutlinedIcon from '@mui/icons-material/SpaOutlined';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import PlannerStepper from '@/components/PlannerStepper';
 import CalculationTooltip from '@/components/CalculationTooltip';
+import { mealPatterns, gradeGroupMeta } from '@/data/mealPatterns';
 
 interface DistrictProfile {
   districtName: string;
@@ -445,6 +446,141 @@ export default function PlannerPage() {
             </Box>
           )}
         </Card>
+
+        {/* Age Group Serving Size Breakdown */}
+        {profile && profile.gradeLevels && profile.gradeLevels.length > 0 && (
+          <Card
+            sx={{
+              p: 4,
+              mb: 4,
+              backdropFilter: 'blur(24px)',
+              backgroundColor: 'rgba(255, 255, 255, 0.75)',
+              boxShadow: '0 8px 40px rgba(0, 0, 0, 0.06)',
+              borderRadius: 4,
+              border: '1px solid rgba(255, 255, 255, 0.6)',
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 500, fontFamily: '"Google Sans", sans-serif', mb: 0.5 }}
+            >
+              📊 Serving Size Requirements by Grade Group
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(97, 97, 97, 0.7)', mb: 3 }}>
+              USDA daily minimum serving sizes differ by age group. This affects how many servings each commodity needs to provide.
+            </Typography>
+
+            {/* Grade Group Cards */}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: `repeat(${Math.min(profile.gradeLevels.length, 4)}, 1fr)` },
+                gap: 2,
+                mb: 3,
+              }}
+            >
+              {profile.gradeLevels.map((gradeId) => {
+                const pattern = mealPatterns[gradeId];
+                const meta = gradeGroupMeta[gradeId];
+                const enrollment = (profile as any)?.enrollmentByGrade?.[gradeId] || 0;
+                const adp = (profile as any)?.adpByGrade?.[gradeId] || 0;
+                const servingDays = (profile as any)?.servingDays || 180;
+                const gradeAnnualMeals = adp * servingDays;
+
+                if (!pattern) return null;
+
+                return (
+                  <Box
+                    key={gradeId}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 3,
+                      bgcolor: `${meta?.color || 'rgba(97,97,97,0.8)'}`.replace('0.8', '0.06'),
+                      border: `1px solid ${meta?.color || 'rgba(97,97,97,0.8)'}`.replace('0.8', '0.2'),
+                    }}
+                  >
+                    {/* Header */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <Typography variant="h5">{meta?.emoji}</Typography>
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: meta?.color, lineHeight: 1.2 }}>
+                          {pattern.label}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'rgba(97,97,97,0.6)' }}>
+                          {pattern.meal_type}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Enrollment & ADP */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5, mb: 1.5 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Enrolled:</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                        {enrollment.toLocaleString()}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>ADP:</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                        {adp.toLocaleString()}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Annual Meals:</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                        {gradeAnnualMeals.toLocaleString()}
+                      </Typography>
+                    </Box>
+
+                    {/* Daily Serving Sizes */}
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: meta?.color, display: 'block', mb: 0.5 }}>
+                      Daily Minimums per Meal:
+                    </Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 0.3 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>🥩 Meat/MA:</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                        {pattern.daily.meat_ma_oz_min} oz eq
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>🌾 Grain:</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                        {pattern.daily.grain_oz_eq_min} oz eq
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>🥬 Vegetable:</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                        {pattern.daily.veg_cups_min} cup
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>🍎 Fruit:</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                        {pattern.daily.fruit_cups_min} cup
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>🥛 Milk:</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                        {pattern.daily.milk_cups_min} cup
+                      </Typography>
+                    </Box>
+
+                    {/* Calorie Range */}
+                    <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px dashed rgba(0,0,0,0.08)' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        🔥 {pattern.calories_min}–{pattern.calories_max} cal/meal
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                        🧂 ≤{pattern.sodium_mg_max} mg sodium
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+
+            {/* Highlight key differences */}
+            {profile.gradeLevels.includes('high') && (profile.gradeLevels.includes('elementary') || profile.gradeLevels.includes('middle')) && (
+              <Box sx={{ p: 2, bgcolor: 'rgba(255, 152, 0, 0.06)', borderRadius: 2, border: '1px solid rgba(255, 152, 0, 0.15)' }}>
+                <Typography variant="caption" sx={{ color: 'rgba(230, 126, 0, 0.9)' }}>
+                  ⚠️ <strong>Key difference:</strong> High school requires <strong>2× the protein and grain</strong> per meal vs. elementary/middle
+                  (2.0 oz eq vs 1.0 oz eq daily). High school also needs <strong>double the fruit and vegetables</strong>.
+                  Plan commodity quantities accordingly.
+                </Typography>
+              </Box>
+            )}
+          </Card>
+        )}
 
         {/* Category Cards */}
         <Typography
