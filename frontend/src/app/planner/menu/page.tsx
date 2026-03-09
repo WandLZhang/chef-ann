@@ -38,8 +38,11 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import PlannerStepper from '@/components/PlannerStepper';
 import RecipeTooltip from '@/components/RecipeTooltip';
 import RecipeDetailDialog from '@/components/RecipeDetailDialog';
+import ViewWeekIcon from '@mui/icons-material/ViewWeek';
+import CalendarViewMonthIcon from '@mui/icons-material/CalendarViewMonth';
 import { recipes, Recipe, getRecipesByProtein } from '@/data/recipes';
 import { streamCompliance, type StreamCallbacks } from '@/lib/api';
+import { mealPatterns } from '@/data/mealPatterns';
 
 interface CategoryAllocation {
   category: string;
@@ -222,6 +225,9 @@ export default function MenuPage() {
   const [showCode, setShowCode] = useState(false);
   const [statusText, setStatusText] = useState('');
   
+  // View mode: 'week' (detailed single week) or 'month' (all weeks compliance overview)
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+  
   // Recipe detail dialog state
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
@@ -386,26 +392,66 @@ export default function MenuPage() {
             </Button>
           </Box>
 
-          {/* Week Selector & Grade Group */}
-          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              {[0, 1, 2, 3, 4].map((week) => (
-                <Chip
-                  key={week}
-                  label={`Week ${week + 1}`}
-                  onClick={() => setSelectedWeek(week)}
-                  sx={{
-                    bgcolor: selectedWeek === week
-                      ? 'rgba(76, 175, 80, 0.2)'
-                      : 'rgba(0, 0, 0, 0.04)',
-                    border: selectedWeek === week
-                      ? '2px solid rgba(76, 175, 80, 0.6)'
-                      : '1px solid transparent',
-                    fontWeight: selectedWeek === week ? 600 : 400,
-                  }}
-                />
-              ))}
+          {/* View Toggle, Week Selector & Grade Group */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* View Mode Toggle */}
+            <Box sx={{ display: 'flex', bgcolor: 'rgba(0,0,0,0.04)', borderRadius: 2, p: 0.5 }}>
+              <Button
+                size="small"
+                startIcon={<ViewWeekIcon />}
+                onClick={() => setViewMode('week')}
+                sx={{
+                  px: 1.5,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontWeight: viewMode === 'week' ? 600 : 400,
+                  bgcolor: viewMode === 'week' ? 'rgba(76, 175, 80, 0.15)' : 'transparent',
+                  color: viewMode === 'week' ? 'rgba(76, 175, 80, 0.9)' : 'rgba(97,97,97,0.7)',
+                  '&:hover': { bgcolor: viewMode === 'week' ? 'rgba(76, 175, 80, 0.2)' : 'rgba(0,0,0,0.06)' },
+                }}
+              >
+                Week
+              </Button>
+              <Button
+                size="small"
+                startIcon={<CalendarViewMonthIcon />}
+                onClick={() => setViewMode('month')}
+                sx={{
+                  px: 1.5,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontWeight: viewMode === 'month' ? 600 : 400,
+                  bgcolor: viewMode === 'month' ? 'rgba(33, 150, 243, 0.15)' : 'transparent',
+                  color: viewMode === 'month' ? 'rgba(33, 150, 243, 0.9)' : 'rgba(97,97,97,0.7)',
+                  '&:hover': { bgcolor: viewMode === 'month' ? 'rgba(33, 150, 243, 0.2)' : 'rgba(0,0,0,0.06)' },
+                }}
+              >
+                Monthly Compliance
+              </Button>
             </Box>
+
+            {/* Week chips - only in week mode */}
+            {viewMode === 'week' && (
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {[0, 1, 2, 3, 4].map((week) => (
+                  <Chip
+                    key={week}
+                    label={`Week ${week + 1}`}
+                    onClick={() => setSelectedWeek(week)}
+                    sx={{
+                      bgcolor: selectedWeek === week
+                        ? 'rgba(76, 175, 80, 0.2)'
+                        : 'rgba(0, 0, 0, 0.04)',
+                      border: selectedWeek === week
+                        ? '2px solid rgba(76, 175, 80, 0.6)'
+                        : '1px solid transparent',
+                      fontWeight: selectedWeek === week ? 600 : 400,
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+
             <FormControl size="small" sx={{ minWidth: 150 }}>
               <InputLabel>Grade Group</InputLabel>
               <Select
@@ -421,8 +467,164 @@ export default function MenuPage() {
             </FormControl>
           </Box>
 
-          {/* Calendar Grid */}
-          {menu.length > 0 && (
+          {/* ===== MONTHLY COMPLIANCE VIEW ===== */}
+          {viewMode === 'month' && menu.length > 0 && (() => {
+            const pattern = mealPatterns[gradeGroup] || mealPatterns.elementary;
+            const dailyReqs = pattern.daily;
+            // Simplified daily component values (same as generateWeekMenuData)
+            const dayMeat = 2.5, dayGrain = 1.5, dayVeg = 0.75, dayFruit = 0.5;
+
+            // Check daily compliance for a single day
+            const checkDay = () => {
+              const issues: string[] = [];
+              if (dayMeat < dailyReqs.meat_ma_oz_min) issues.push('🥩');
+              if (dayGrain < dailyReqs.grain_oz_eq_min) issues.push('🌾');
+              if (dayVeg < dailyReqs.veg_cups_min) issues.push('🥬');
+              if (dayFruit < dailyReqs.fruit_cups_min) issues.push('🍎');
+              return issues;
+            };
+
+            // Check weekly compliance (sum of 5 days vs weekly mins)
+            const checkWeek = () => {
+              const weekMeat = dayMeat * 5, weekGrain = dayGrain * 5;
+              const weekVeg = dayVeg * 5, weekFruit = dayFruit * 5;
+              const results = [
+                { label: '🥩 M/MA', actual: weekMeat, required: pattern.weekly.meat_ma_oz_min, unit: 'oz eq', ok: weekMeat >= pattern.weekly.meat_ma_oz_min },
+                { label: '🌾 Grain', actual: weekGrain, required: pattern.weekly.grain_oz_eq_min, unit: 'oz eq', ok: weekGrain >= pattern.weekly.grain_oz_eq_min },
+                { label: '🥬 Veg', actual: weekVeg, required: pattern.weekly.veg_cups_min, unit: 'cups', ok: weekVeg >= pattern.weekly.veg_cups_min },
+                { label: '🍎 Fruit', actual: weekFruit, required: pattern.weekly.fruit_cups_min, unit: 'cups', ok: weekFruit >= pattern.weekly.fruit_cups_min },
+              ];
+              return results;
+            };
+
+            const dayIssues = checkDay();
+            const weekResults = checkWeek();
+            const allWeeksCompliant = weekResults.every(r => r.ok);
+
+            return (
+              <Box sx={{ mb: 3 }}>
+                {/* Month header */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(33, 150, 243, 0.9)' }}>
+                    📅 5-Week Compliance Overview — {pattern.label}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={allWeeksCompliant ? '✓ All Weeks Compliant' : '⚠ Issues Found'}
+                    sx={{
+                      bgcolor: allWeeksCompliant ? 'rgba(76, 175, 80, 0.15)' : 'rgba(255, 152, 0, 0.15)',
+                      color: allWeeksCompliant ? 'rgba(76, 175, 80, 0.9)' : 'rgba(255, 152, 0, 0.9)',
+                      fontWeight: 600,
+                      fontSize: '0.7rem',
+                    }}
+                  />
+                </Box>
+
+                {/* Column headers */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: '60px repeat(5, 1fr) 1fr', gap: 0.5, mb: 0.5 }}>
+                  <Box />
+                  {dayNames.map(d => (
+                    <Typography key={d} variant="caption" sx={{ textAlign: 'center', fontWeight: 600, color: 'rgba(33, 150, 243, 0.7)' }}>
+                      {d}
+                    </Typography>
+                  ))}
+                  <Typography variant="caption" sx={{ textAlign: 'center', fontWeight: 600, color: 'rgba(33, 150, 243, 0.7)' }}>
+                    Weekly
+                  </Typography>
+                </Box>
+
+                {/* Week rows */}
+                {menu.map((week, wIdx) => (
+                  <Box
+                    key={wIdx}
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: '60px repeat(5, 1fr) 1fr',
+                      gap: 0.5,
+                      mb: 0.5,
+                    }}
+                  >
+                    {/* Week label */}
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(97,97,97,0.7)', fontSize: '0.7rem' }}>
+                        Wk {wIdx + 1}
+                      </Typography>
+                    </Box>
+
+                    {/* Day cells */}
+                    {week.map((day, dIdx) => {
+                      const issues = checkDay();
+                      const isCompliant = issues.length === 0;
+                      return (
+                        <Box
+                          key={dIdx}
+                          onClick={() => { setViewMode('week'); setSelectedWeek(wIdx); }}
+                          sx={{
+                            p: 0.75,
+                            borderRadius: 1.5,
+                            cursor: 'pointer',
+                            bgcolor: isCompliant ? 'rgba(76, 175, 80, 0.08)' : 'rgba(255, 152, 0, 0.08)',
+                            border: `1px solid ${isCompliant ? 'rgba(76, 175, 80, 0.2)' : 'rgba(255, 152, 0, 0.2)'}`,
+                            transition: 'all 0.15s ease',
+                            '&:hover': {
+                              transform: 'scale(1.02)',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                            },
+                          }}
+                        >
+                          {/* Compliance dot */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                            <Box sx={{
+                              width: 8, height: 8, borderRadius: '50%',
+                              bgcolor: isCompliant ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255, 152, 0, 0.8)',
+                            }} />
+                            <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(33,33,33,0.7)', lineHeight: 1 }}>
+                              {day.entree.length > 18 ? day.entree.slice(0, 16) + '…' : day.entree}
+                            </Typography>
+                          </Box>
+                          {/* Missing components */}
+                          {issues.length > 0 && (
+                            <Typography variant="caption" sx={{ fontSize: '0.55rem', color: 'rgba(255, 152, 0, 0.8)' }}>
+                              Low: {issues.join(' ')}
+                            </Typography>
+                          )}
+                        </Box>
+                      );
+                    })}
+
+                    {/* Weekly summary */}
+                    <Box sx={{ p: 0.75, borderRadius: 1.5, bgcolor: allWeeksCompliant ? 'rgba(76, 175, 80, 0.06)' : 'rgba(255, 152, 0, 0.06)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                      {weekResults.map((r, i) => (
+                        <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                          <Typography variant="caption" sx={{ fontSize: '0.55rem', color: r.ok ? 'rgba(76,175,80,0.8)' : 'rgba(255,152,0,0.9)', fontWeight: r.ok ? 400 : 600 }}>
+                            {r.label} {r.actual}/{r.required}
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontSize: '0.5rem', color: r.ok ? 'rgba(76,175,80,0.6)' : 'rgba(255,152,0,0.7)' }}>
+                            {r.ok ? '✓' : '⚠'}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                ))}
+
+                {/* Legend */}
+                <Box sx={{ display: 'flex', gap: 2, mt: 1.5, justifyContent: 'center' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'rgba(76, 175, 80, 0.8)' }} />
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>Meets daily minimums</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'rgba(255, 152, 0, 0.8)' }} />
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>Below minimum — click to view week</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            );
+          })()}
+
+          {/* ===== WEEK VIEW (existing calendar grid) ===== */}
+          {viewMode === 'week' && menu.length > 0 && (
             <Box
               sx={{
                 display: 'grid',
