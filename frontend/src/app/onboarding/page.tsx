@@ -46,6 +46,12 @@ const equipmentOptions = [
   { id: 'cooktop', label: 'Gas Cooktop' },
   { id: 'robotcoupe', label: 'Robot Coupe' },
   { id: 'immersion', label: 'Immersion Blenders' },
+  { id: 'mixer', label: 'Stand Mixers' },
+  { id: 'floormixer', label: 'Floor Mixers' },
+  { id: 'meatslicer', label: 'Meat Slicers' },
+  { id: 'blender', label: 'Blenders' },
+  { id: 'walkincooler', label: 'Walk-in Coolers' },
+  { id: 'walkinfreezer', label: 'Walk-in Freezers' },
 ];
 
 const allergenOptions = [
@@ -54,7 +60,7 @@ const allergenOptions = [
   { id: 'fish', label: 'Fish' },
   { id: 'shellfish', label: 'Shellfish' },
   { id: 'treenuts', label: 'Tree Nuts' },
-  { id: 'wheat', label: 'Wheat' },
+  { id: 'wheat', label: 'Wheat (Gluten)' },
   { id: 'peanuts', label: 'Peanuts' },
   { id: 'soybeans', label: 'Soybeans' },
   { id: 'sesame', label: 'Sesame' },
@@ -78,6 +84,7 @@ interface DistrictProfile {
   totalAnnualMeals: number;
   sites: string;
   foodCostPercentage: string;
+  commodityValuePerMeal: number | '';
   equipment: string[];
   allergens: string[];
 }
@@ -103,6 +110,7 @@ const exampleData: DistrictProfile = {
   totalAnnualMeals: 3375000,
   sites: '45 sites (5 production, 40 satellite)',
   foodCostPercentage: '48',
+  commodityValuePerMeal: 0.45,
   equipment: ['combi', 'kettle', 'convection'],
   allergens: ['peanuts', 'treenuts'],
 };
@@ -127,6 +135,7 @@ export default function OnboardingPage() {
     totalAnnualMeals: 0,
     sites: '',
     foodCostPercentage: '',
+    commodityValuePerMeal: 0.45,
     equipment: [],
     allergens: [],
   });
@@ -349,11 +358,71 @@ export default function OnboardingPage() {
               value={profile.foodCostPercentage}
               onChange={(e) => setProfile({ ...profile, foodCostPercentage: e.target.value })}
               helperText="Industry range: 40-55% of reimbursement"
+              sx={{ mb: 3 }}
               InputLabelProps={{ shrink: true }}
               InputProps={{
                 endAdornment: <Typography sx={{ color: 'text.secondary' }}>%</Typography>,
               }}
             />
+            <TextField
+              fullWidth
+              label="USDA Commodity Value per Meal"
+              type="number"
+              value={profile.commodityValuePerMeal}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '') {
+                  setProfile({ ...profile, commodityValuePerMeal: '' });
+                } else {
+                  const parsed = parseFloat(val);
+                  setProfile({ ...profile, commodityValuePerMeal: isNaN(parsed) ? '' : parsed });
+                }
+              }}
+              helperText="USDA FNS rate per meal (default $0.45, effective July 2025). Your entitlement = Annual Meals × this rate."
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                startAdornment: <Typography sx={{ color: 'text.secondary', mr: 0.5 }}>$</Typography>,
+                inputProps: { step: 0.01, min: 0 },
+              }}
+            />
+            {/* Entitlement Preview — shows computed value when annual meals are available */}
+            {profile.totalAnnualMeals > 0 && typeof profile.commodityValuePerMeal === 'number' && (
+              <Box
+                sx={{
+                  mt: 2,
+                  p: 2,
+                  bgcolor: 'rgba(76, 175, 80, 0.06)',
+                  borderRadius: 2,
+                  border: '1px solid rgba(76, 175, 80, 0.2)',
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="caption" sx={{ color: 'rgba(76, 175, 80, 0.8)', fontWeight: 600 }}>
+                      💰 ESTIMATED ENTITLEMENT:
+                    </Typography>
+                    <CalculationTooltip
+                      iconSize={14}
+                      provenance={{
+                        formula: 'Annual Meals × Commodity Value per Meal',
+                        inputs: [
+                          { label: 'Annual Meals', value: profile.totalAnnualMeals.toLocaleString(), source: 'ADP × Serving Days (Step 2)' },
+                          { label: 'Value per Meal', value: `$${profile.commodityValuePerMeal.toFixed(2)}`, source: 'USDA FNS Federal Register, eff. July 2025' },
+                        ],
+                        steps: `${profile.totalAnnualMeals.toLocaleString()} × $${profile.commodityValuePerMeal.toFixed(2)} = $${Math.round(profile.totalAnnualMeals * profile.commodityValuePerMeal).toLocaleString()}`,
+                        source: 'USDA Foods in Schools, FAL SY26-27',
+                      }}
+                    />
+                  </Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: 'rgba(76, 175, 80, 0.9)', fontFamily: '"Google Sans", sans-serif' }}>
+                    ${Math.round(profile.totalAnnualMeals * profile.commodityValuePerMeal).toLocaleString()}
+                  </Typography>
+                </Box>
+                <Typography variant="caption" sx={{ color: 'rgba(97, 97, 97, 0.6)', mt: 0.5, display: 'block' }}>
+                  {profile.totalAnnualMeals.toLocaleString()} meals × ${profile.commodityValuePerMeal.toFixed(2)}/meal
+                </Typography>
+              </Box>
+            )}
           </Box>
         );
 
@@ -649,6 +718,45 @@ export default function OnboardingPage() {
                         </Typography>
                       </Box>
                     </Box>
+
+                    {/* Entitlement Calculation */}
+                    {profile.totalAnnualMeals > 0 && typeof profile.commodityValuePerMeal === 'number' && profile.commodityValuePerMeal > 0 && (
+                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed rgba(76, 175, 80, 0.3)' }}>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            Commodity Value/Meal:
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                            ${profile.commodityValuePerMeal.toFixed(2)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="caption" sx={{ color: 'rgba(76, 175, 80, 0.9)', fontWeight: 600 }}>
+                              💰 ESTIMATED ENTITLEMENT:
+                            </Typography>
+                            <CalculationTooltip
+                              iconSize={14}
+                              provenance={{
+                                formula: 'Annual Meals × Commodity Value per Meal',
+                                inputs: [
+                                  { label: 'Annual Meals', value: profile.totalAnnualMeals.toLocaleString(), source: 'ADP × Serving Days' },
+                                  { label: 'Value per Meal', value: `$${profile.commodityValuePerMeal.toFixed(2)}`, source: 'USDA FNS Federal Register, eff. July 2025 (configurable in Step 1)' },
+                                ],
+                                steps: `${profile.totalAnnualMeals.toLocaleString()} × $${profile.commodityValuePerMeal.toFixed(2)} = $${Math.round(profile.totalAnnualMeals * profile.commodityValuePerMeal).toLocaleString()}`,
+                                source: 'USDA Foods in Schools, FAL SY26-27',
+                              }}
+                            />
+                          </Box>
+                          <Typography variant="body1" sx={{ fontWeight: 700, color: 'rgba(76, 175, 80, 0.9)' }}>
+                            ${Math.round(profile.totalAnnualMeals * profile.commodityValuePerMeal).toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Typography variant="caption" sx={{ color: 'rgba(97, 97, 97, 0.5)', display: 'block', mt: 0.5 }}>
+                          {profile.totalAnnualMeals.toLocaleString()} meals × ${profile.commodityValuePerMeal.toFixed(2)}/meal
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                 )}
               </>

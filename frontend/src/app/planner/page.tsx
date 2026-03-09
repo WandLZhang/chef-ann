@@ -84,8 +84,11 @@ export default function PlannerPage() {
     }
   }, []);
 
-  // Entitlement calculation — dynamic: Annual Meals × USDA commodity value per meal
-  const COMMODITY_VALUE_PER_MEAL = 0.45; // USDA FNS, effective July 2025
+  // Entitlement calculation — uses user-configurable commodity value per meal from onboarding
+  const profileValuePerMeal = (profile as any)?.commodityValuePerMeal;
+  const COMMODITY_VALUE_PER_MEAL = (typeof profileValuePerMeal === 'number' && profileValuePerMeal > 0)
+    ? profileValuePerMeal
+    : 0.45; // USDA FNS default, effective July 2025
   const annualMeals = profile?.totalAnnualMeals || (totalADP * 180);
   const entitlement = Math.round(annualMeals * COMMODITY_VALUE_PER_MEAL);
   const dodFreshPct = 0.2;
