@@ -42,6 +42,7 @@ export default function BudgetPage() {
   const [loading, setLoading] = useState(false);
   const [totalSpent, setTotalSpent] = useState(0);
   const [annualMeals, setAnnualMeals] = useState(3600000);
+  const [milkCostPerMeal, setMilkCostPerMeal] = useState(0.25); // $/carton, procured separately from commodities
   
   // Dynamic result storage - stores any JSON keys
   const [metrics, setMetrics] = useState<Record<string, string | number>>({});
@@ -374,7 +375,7 @@ export default function BudgetPage() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
               gap: 2,
               mb: 3,
             }}
@@ -427,7 +428,112 @@ export default function BudgetPage() {
                 {annualMeals.toLocaleString()}
               </Typography>
             </Box>
+            <Box sx={{ p: 3, bgcolor: 'rgba(156, 39, 176, 0.06)', borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: 'rgba(156, 39, 176, 0.7)' }}>
+                  🥛 Milk Cost per Carton
+                </Typography>
+                <CalculationTooltip
+                  iconSize={13}
+                  iconColor="rgba(156, 39, 176, 0.5)"
+                  provenance={{
+                    formula: 'District dairy contract price per 8oz carton',
+                    inputs: [
+                      { label: 'Default', value: '$0.25', source: 'Typical 8oz carton price range: $0.20-$0.35' },
+                    ],
+                    steps: 'Milk is procured separately from USDA commodities via local dairy contracts. 1 carton = 1 cup = USDA daily milk requirement.',
+                    source: 'Not a USDA commodity — purchased separately. Required component of every NSLP meal.',
+                  }}
+                />
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                <Typography variant="h4" sx={{ fontWeight: 500, color: 'rgba(156, 39, 176, 0.8)' }}>$</Typography>
+                <input
+                  type="number"
+                  value={milkCostPerMeal}
+                  onChange={(e) => setMilkCostPerMeal(parseFloat(e.target.value) || 0)}
+                  step="0.01"
+                  min="0"
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    fontSize: '2.125rem',
+                    fontWeight: 500,
+                    color: 'rgba(156, 39, 176, 0.8)',
+                    width: '100px',
+                    outline: 'none',
+                    fontFamily: '"Google Sans", "Roboto", sans-serif',
+                  }}
+                />
+              </Box>
+              <Typography variant="caption" sx={{ color: 'rgba(156, 39, 176, 0.5)' }}>
+                per 8oz carton (editable)
+              </Typography>
+            </Box>
           </Box>
+
+          {/* Client-Side Plate Cost Estimate */}
+          {totalSpent > 0 && (() => {
+            const commodityCostPerMeal = annualMeals > 0 ? totalSpent / annualMeals : 0;
+            const otherFoodCost = 0.65;
+            const laborOverhead = 1.50;
+            const totalPlateCost = commodityCostPerMeal + milkCostPerMeal + otherFoodCost + laborOverhead;
+
+            return (
+              <Box sx={{ p: 3, mb: 3, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 3, border: '1px solid rgba(0,0,0,0.06)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'rgba(33,33,33,0.8)' }}>
+                  📋 Plate Cost Breakdown (per meal)
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>🥩 Commodity food cost:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                    ${commodityCostPerMeal.toFixed(4)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(156, 39, 176, 0.8)' }}>🥛 Milk (per carton):</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'right', color: 'rgba(156, 39, 176, 0.8)' }}>
+                    ${milkCostPerMeal.toFixed(2)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>🥗 Non-commodity food:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                    ${otherFoodCost.toFixed(2)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>👷 Labor & overhead:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                    ${laborOverhead.toFixed(2)}
+                  </Typography>
+                </Box>
+                <Divider sx={{ my: 1.5 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'rgba(76, 175, 80, 0.9)' }}>
+                      Total Plate Cost:
+                    </Typography>
+                    <CalculationTooltip
+                      iconSize={14}
+                      iconColor="rgba(76, 175, 80, 0.5)"
+                      provenance={{
+                        formula: 'Commodity Food + Milk + Non-Commodity Food + Labor & Overhead',
+                        inputs: [
+                          { label: 'Commodity Cost/Meal', value: `$${commodityCostPerMeal.toFixed(4)}`, source: `$${totalSpent.toLocaleString()} ÷ ${annualMeals.toLocaleString()} meals` },
+                          { label: 'Milk Cost/Meal', value: `$${milkCostPerMeal.toFixed(2)}`, source: 'District dairy contract (user input, editable above)' },
+                          { label: 'Non-Commodity Food', value: `$${otherFoodCost.toFixed(2)}`, source: 'Condiments, bread, etc. (default $0.65)' },
+                          { label: 'Labor & Overhead', value: `$${laborOverhead.toFixed(2)}`, source: 'District labor costs (default $1.50)' },
+                        ],
+                        steps: `$${commodityCostPerMeal.toFixed(4)} + $${milkCostPerMeal.toFixed(2)} + $${otherFoodCost.toFixed(2)} + $${laborOverhead.toFixed(2)} = $${totalPlateCost.toFixed(4)}`,
+                        source: 'Includes milk cost — procured separately from USDA commodities via local dairy contracts',
+                      }}
+                    />
+                  </Box>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: 'rgba(76, 175, 80, 0.9)', fontFamily: '"Google Sans", sans-serif' }}>
+                    ${totalPlateCost.toFixed(4)}
+                  </Typography>
+                </Box>
+                <Typography variant="caption" sx={{ color: 'rgba(97,97,97,0.5)', display: 'block', mt: 0.5 }}>
+                  Annual plate cost: ${Math.round(totalPlateCost * annualMeals).toLocaleString()} ({annualMeals.toLocaleString()} meals)
+                </Typography>
+              </Box>
+            );
+          })()}
 
           {/* Analyze Button */}
           <Button
