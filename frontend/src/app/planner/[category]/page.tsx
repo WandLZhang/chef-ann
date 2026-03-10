@@ -44,6 +44,9 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { getCommodities, type Commodity } from '@/lib/api';
+import UserHeader from '@/components/UserHeader';
+import { useAuth } from '@/contexts/AuthContext';
+import { saveAllocations, loadAllocations } from '@/lib/firestore';
 
 /** Summary for a single allocated item */
 interface AllocationSummaryItem {
@@ -71,15 +74,24 @@ const categoryMeta: Record<string, { name: string; emoji: string }> = {
 
 export default function CategoryPage() {
   const router = useRouter();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const params = useParams();
   const category = params.category as string;
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // State
+  // Auth guard
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/');
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  // State — allocations is the working copy; changes are NOT auto-saved
   const [commodities, setCommodities] = useState<Commodity[]>([]);
   const [allocations, setAllocations] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   // Fetch commodities from backend (serves from comprehensive JSON)
   useEffect(() => {
@@ -102,6 +114,50 @@ export default function CategoryPage() {
     }
     fetchCommodities();
   }, [category]);
+
+  // Restore saved allocations from Firestore (source of truth) once commodities + user are loaded
+  useEffect(() => {
+    if (commodities.length === 0 || initialLoadDone || !user) return;
+
+    async function restoreFromFirestore() {
+      try {
+        const allAllocations = await loadAllocations(user!.uid);
+        console.log('[category] Loaded all allocations from Firestore:', JSON.stringify(allAllocations));
+
+        if (allAllocations) {
+          const categoryData = (allAllocations as Record<string, any>)[category];
+          if (categoryData && Array.isArray(categoryData.items) && categoryData.items.length > 0) {
+            const restoredMap = new Map<string, number>();
+            categoryData.items.forEach((item: { wbscmId: string; cases?: number; cost?: number; servings?: number }) => {
+              if (item.cases && item.cases > 0) {
+                // Best case: cases field exists
+                restoredMap.set(item.wbscmId, item.cases);
+              } else if (item.cost && item.cost > 0) {
+                // Backward-compatible: infer cases from cost
+                const commodity = commodities.find(c => c.wbscm_id === item.wbscmId);
+                if (commodity) {
+                  const caseWeight = commodity.case_weight_lbs || 40;
+                  const costPerCase = caseWeight * commodity.est_cost_per_lb;
+                  const inferredCases = costPerCase > 0 ? Math.max(1, Math.round(item.cost / costPerCase)) : 1;
+                  console.log(`[category] Inferred ${inferredCases} cases for ${item.wbscmId} from cost $${item.cost}`);
+                  restoredMap.set(item.wbscmId, inferredCases);
+                }
+              }
+            });
+            if (restoredMap.size > 0) {
+              console.log(`[category] Restored ${restoredMap.size} saved allocations for '${category}' from Firestore`);
+              setAllocations(restoredMap);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[category] Failed to restore allocations from Firestore:', err);
+      }
+      setInitialLoadDone(true);
+    }
+
+    restoreFromFirestore();
+  }, [commodities, category, initialLoadDone, user]);
 
   // Fade in animation
   useEffect(() => {
@@ -153,24 +209,54 @@ export default function CategoryPage() {
     return { items, totalCost: Math.round(totalCost * 100) / 100, totalServings };
   }, [allocations, commodities]);
 
-  // Save allocation to localStorage whenever it changes (live)
-  useEffect(() => {
-    if (commodities.length === 0) return;
+  /**
+   * @brief Explicitly save current allocations to localStorage + Firestore.
+   * 
+   * @details Only called when user clicks "Save & Return". NOT auto-saved.
+   * This ensures Back button reverts to last saved state, and changes
+   * are only committed when the user explicitly confirms.
+   * Now includes `cases` per item so quantities can be restored on next visit.
+   */
+  const handleSaveAndReturn = useCallback(async () => {
     const { items, totalCost, totalServings } = computeSummary();
 
-    const savedAllocations = JSON.parse(localStorage.getItem('commodityAllocations') || '{}');
+    // Build the updated allocations object from Firestore (source of truth)
+    let allAllocations: Record<string, unknown> = {};
+    if (user) {
+      try {
+        const existing = await loadAllocations(user.uid);
+        if (existing) allAllocations = existing as Record<string, unknown>;
+      } catch (err) {
+        console.error('[category] Failed to load existing allocations from Firestore:', err);
+      }
+    }
+
     if (items.length > 0) {
-      savedAllocations[category] = {
+      allAllocations[category] = {
         category,
         totalCost,
         totalServings,
-        items: items.map(i => ({ wbscmId: i.wbscmId, cost: i.cost, servings: i.servings })),
+        items: items.map(i => ({ wbscmId: i.wbscmId, cases: i.cases, cost: i.cost, servings: i.servings })),
       };
     } else {
-      delete savedAllocations[category];
+      delete allAllocations[category];
     }
-    localStorage.setItem('commodityAllocations', JSON.stringify(savedAllocations));
-  }, [allocations, commodities, category, computeSummary]);
+
+    console.log(`[category] Saving allocations for '${category}':`, JSON.stringify(allAllocations[category]));
+
+    // Save to Firestore (source of truth) and localStorage (cache)
+    localStorage.setItem('commodityAllocations', JSON.stringify(allAllocations));
+    if (user) {
+      try {
+        await saveAllocations(user.uid, allAllocations);
+        console.log('[category] Saved to Firestore successfully');
+      } catch (err) {
+        console.error('[category] Failed to save allocations to Firestore:', err);
+      }
+    }
+
+    router.push('/planner');
+  }, [computeSummary, category, user, router]);
 
   // Update allocation quantity
   const updateQuantity = (wbscmId: string, delta: number) => {
@@ -470,11 +556,11 @@ export default function CategoryPage() {
               {detailsExpanded ? 'Hide' : 'Details'}
             </Button>
 
-            {/* Save & Return */}
+            {/* Save & Return — explicitly commits to localStorage + Firestore */}
             <Button
               variant="contained"
               size="small"
-              onClick={() => router.push('/planner')}
+              onClick={handleSaveAndReturn}
               sx={{
                 px: 2.5,
                 fontFamily: '"Google Sans", sans-serif',

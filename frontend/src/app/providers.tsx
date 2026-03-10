@@ -9,6 +9,7 @@ import { ReactNode, useEffect } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '@/lib/theme';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 // Lenis smooth scroll
 import Lenis from '@studio-freight/lenis';
@@ -42,7 +43,9 @@ export default function Providers({ children }: ProvidersProps) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {children}
+      <AuthProvider>
+        {children}
+      </AuthProvider>
     </ThemeProvider>
   );
 }

@@ -1,21 +1,45 @@
 /**
  * @file page.tsx
- * @brief Clean, modern splash screen with light transparent design
+ * @brief Splash screen with login form for authenticated access.
+ *
+ * @details Shows a glassmorphism card with email/password login. On successful
+ * auth, routes to /planner if user has existing data, or /onboarding for new users.
+ * Validates against an approved user list before attempting Firebase sign-in.
+ *
+ * @author Willis Zhang
+ * @date 2026-03-10
  */
 
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Typography, Button, Container, Card } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Button,
+  Container,
+  Card,
+  TextField,
+  Alert,
+  CircularProgress,
+} from '@mui/material';
 import { gsap } from 'gsap';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import SpaOutlinedIcon from '@mui/icons-material/SpaOutlined';
+import LoginIcon from '@mui/icons-material/Login';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SplashPage() {
   const router = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const { user, loading, isAuthenticated, hasExistingData, signIn, authError } = useAuth();
 
   // Simple fade-in on mount
   useEffect(() => {
@@ -34,6 +58,27 @@ export default function SplashPage() {
     }
   }, [isReady]);
 
+  // If already authenticated, show the "Enter" button instead of login
+  // (user may have refreshed the page while still logged in)
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setLocalError('Please enter both email and password.');
+      return;
+    }
+
+    setLocalError(null);
+    setIsSigningIn(true);
+
+    try {
+      await signIn(email.trim(), password);
+      console.log('[splash] Login successful, hasExistingData:', hasExistingData);
+      // The auth state listener will set isAuthenticated
+    } catch {
+      // Error is already set via authError in the context
+      setIsSigningIn(false);
+    }
+  };
 
   const handleEnter = () => {
     gsap.to(cardRef.current, {
@@ -41,9 +86,27 @@ export default function SplashPage() {
       opacity: 0,
       duration: 0.4,
       ease: 'power2.in',
-      onComplete: () => router.push('/onboarding'),
+      onComplete: () => {
+        if (hasExistingData) {
+          router.push('/planner');
+        } else {
+          router.push('/onboarding');
+        }
+      },
     });
   };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      if (isAuthenticated) {
+        handleEnter();
+      } else {
+        handleLogin();
+      }
+    }
+  };
+
+  const displayError = localError || authError;
 
   return (
     <Box
@@ -108,11 +171,11 @@ export default function SplashPage() {
               mb: 3,
             }}
           >
-            <SpaOutlinedIcon 
-              sx={{ 
-                fontSize: 48, 
+            <SpaOutlinedIcon
+              sx={{
+                fontSize: 48,
                 color: 'rgba(76, 175, 80, 0.8)',
-              }} 
+              }}
             />
           </Box>
 
@@ -152,31 +215,126 @@ export default function SplashPage() {
             Partnering with Chef Ann Foundation
           </Typography>
 
-          <Button
-            variant="contained"
-            size="large"
-            onClick={handleEnter}
-            endIcon={<ArrowForwardIcon />}
-            sx={{
-              px: 4,
-              py: 1.5,
-              fontSize: '1rem',
-              fontWeight: 500,
-              fontFamily: '"Google Sans", "Product Sans", sans-serif',
-              background: 'linear-gradient(135deg, rgba(102,187,106,0.9) 0%, rgba(129,199,132,0.85) 100%)',
-              color: 'white',
-              boxShadow: '0 4px 20px rgba(76, 175, 80, 0.25)',
-              border: 'none',
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 6px 28px rgba(76, 175, 80, 0.35)',
-                background: 'linear-gradient(135deg, rgba(102,187,106,1) 0%, rgba(129,199,132,0.95) 100%)',
-              },
-            }}
-          >
-            Enter District Portal
-          </Button>
+          {/* Loading state */}
+          {loading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+              <CircularProgress size={32} sx={{ color: 'rgba(76, 175, 80, 0.6)' }} />
+            </Box>
+          )}
+
+          {/* If authenticated, show welcome + enter button */}
+          {!loading && isAuthenticated && (
+            <Box>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'rgba(76, 175, 80, 0.9)',
+                  mb: 2,
+                  fontWeight: 500,
+                }}
+              >
+                Welcome, {user?.email}
+              </Typography>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleEnter}
+                endIcon={<ArrowForwardIcon />}
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  fontFamily: '"Google Sans", "Product Sans", sans-serif',
+                  background: 'linear-gradient(135deg, rgba(102,187,106,0.9) 0%, rgba(129,199,132,0.85) 100%)',
+                  color: 'white',
+                  boxShadow: '0 4px 20px rgba(76, 175, 80, 0.25)',
+                  border: 'none',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 6px 28px rgba(76, 175, 80, 0.35)',
+                    background: 'linear-gradient(135deg, rgba(102,187,106,1) 0%, rgba(129,199,132,0.95) 100%)',
+                  },
+                }}
+              >
+                {hasExistingData ? 'Continue to Planner' : 'Enter District Portal'}
+              </Button>
+            </Box>
+          )}
+
+          {/* If not authenticated, show login form */}
+          {!loading && !isAuthenticated && (
+            <Box onKeyDown={handleKeyPress}>
+              {displayError && (
+                <Alert
+                  severity="error"
+                  sx={{
+                    mb: 2,
+                    borderRadius: 2,
+                    '& .MuiAlert-message': { fontSize: '0.85rem' },
+                  }}
+                >
+                  {displayError}
+                </Alert>
+              )}
+
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                sx={{ mb: 2 }}
+                InputLabelProps={{ shrink: true }}
+                placeholder="you@example.com"
+                autoComplete="email"
+                disabled={isSigningIn}
+              />
+              <TextField
+                fullWidth
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                sx={{ mb: 3 }}
+                InputLabelProps={{ shrink: true }}
+                autoComplete="current-password"
+                disabled={isSigningIn}
+              />
+
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleLogin}
+                disabled={isSigningIn}
+                startIcon={isSigningIn ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  fontFamily: '"Google Sans", "Product Sans", sans-serif',
+                  background: 'linear-gradient(135deg, rgba(102,187,106,0.9) 0%, rgba(129,199,132,0.85) 100%)',
+                  color: 'white',
+                  boxShadow: '0 4px 20px rgba(76, 175, 80, 0.25)',
+                  border: 'none',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 6px 28px rgba(76, 175, 80, 0.35)',
+                    background: 'linear-gradient(135deg, rgba(102,187,106,1) 0%, rgba(129,199,132,0.95) 100%)',
+                  },
+                  '&.Mui-disabled': {
+                    background: 'rgba(200, 200, 200, 0.5)',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                  },
+                }}
+              >
+                {isSigningIn ? 'Signing In...' : 'Sign In'}
+              </Button>
+            </Box>
+          )}
         </Card>
       </Container>
 

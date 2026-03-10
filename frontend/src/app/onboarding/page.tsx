@@ -27,6 +27,9 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import CalculationTooltip from '@/components/CalculationTooltip';
+import UserHeader from '@/components/UserHeader';
+import { useAuth } from '@/contexts/AuthContext';
+import { saveDistrictProfile } from '@/lib/firestore';
 
 const steps = ['District Info', 'Enrollment & Meals', 'Kitchen Equipment', 'Allergens'];
 
@@ -117,10 +120,18 @@ const exampleData: DistrictProfile = {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user, isAuthenticated, loading } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const [scratchScore, setScratchScore] = useState(0);
   const [showValidation, setShowValidation] = useState(false);
+
+  // Auth guard — redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push('/');
+    }
+  }, [loading, isAuthenticated, router]);
   
   const [profile, setProfile] = useState<DistrictProfile>({
     districtName: '',
@@ -243,7 +254,13 @@ export default function OnboardingPage() {
     }
     
     if (activeStep === steps.length - 1) {
+      // Save to both localStorage and Firestore
       localStorage.setItem('districtProfile', JSON.stringify(profile));
+      if (user) {
+        saveDistrictProfile(user.uid, profile as unknown as Record<string, unknown>).catch((err) =>
+          console.error('[onboarding] Failed to save profile to Firestore:', err)
+        );
+      }
       gsap.to(cardRef.current, {
         opacity: 0,
         y: -20,
@@ -896,8 +913,10 @@ export default function OnboardingPage() {
         position: 'relative',
         overflow: 'hidden',
         py: 4,
+        pt: 8,
       }}
     >
+      <UserHeader />
       {/* Subtle background shapes */}
       <Box
         sx={{

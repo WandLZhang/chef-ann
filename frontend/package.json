@@ -19,6 +19,7 @@
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "@studio-freight/lenis": "^1.0.42",
+    "firebase": "^12.10.0",
     "gsap": "^3.14.2",
     "next": "^16.1.6",
     "react": "^18",

@@ -19,9 +19,11 @@ import {
 import { gsap } from 'gsap';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SpaOutlinedIcon from '@mui/icons-material/SpaOutlined';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import PlannerStepper from '@/components/PlannerStepper';
 import CalculationTooltip from '@/components/CalculationTooltip';
+import UserHeader from '@/components/UserHeader';
+import { useAuth } from '@/contexts/AuthContext';
+import { saveAllocations, loadAllocations, loadDistrictProfile } from '@/lib/firestore';
 import { mealPatterns, gradeGroupMeta } from '@/data/mealPatterns';
 
 interface DistrictProfile {
@@ -44,36 +46,55 @@ interface CategoryAllocation {
 
 export default function PlannerPage() {
   const router = useRouter();
+  const { user, isAuthenticated, loading } = useAuth();
   const [profile, setProfile] = useState<DistrictProfile | null>(null);
   const [totalADP, setTotalADP] = useState(0);
   const [allocations, setAllocations] = useState<Record<string, CategoryAllocation>>({});
   const [totalSpent, setTotalSpent] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Auth guard
   useEffect(() => {
-    // Load district profile
-    const savedProfile = localStorage.getItem('districtProfile');
-    if (savedProfile) {
-      const parsed = JSON.parse(savedProfile);
-      setProfile(parsed);
-      const total = Object.values(parsed.adpByGrade || {}).reduce(
-        (sum: number, val) => sum + (val as number),
-        0
-      );
-      setTotalADP(total);
+    if (!loading && !isAuthenticated) {
+      router.push('/');
+    }
+  }, [loading, isAuthenticated, router]);
+
+  // Load data from Firestore (source of truth)
+  useEffect(() => {
+    if (!user) return;
+
+    async function loadFromFirestore() {
+      console.log('[planner] Loading data from Firestore for user:', user!.uid);
+
+      // Load district profile from Firestore
+      const profileData = await loadDistrictProfile(user!.uid);
+      if (profileData) {
+        const parsed = profileData as unknown as DistrictProfile;
+        setProfile(parsed);
+        const total = Object.values(parsed.adpByGrade || {}).reduce(
+          (sum: number, val) => sum + (val as number),
+          0
+        );
+        setTotalADP(total);
+        console.log('[planner] Loaded profile from Firestore:', parsed.districtName);
+      }
+
+      // Load allocations from Firestore
+      const allocData = await loadAllocations(user!.uid);
+      if (allocData) {
+        const parsed = allocData as Record<string, CategoryAllocation>;
+        setAllocations(parsed);
+        const spent = Object.values(parsed).reduce(
+          (sum: number, cat: any) => sum + (cat.totalCost || 0),
+          0
+        );
+        setTotalSpent(spent);
+        console.log('[planner] Loaded allocations from Firestore, total spent:', spent);
+      }
     }
 
-    // Load allocations from localStorage
-    const savedAllocations = localStorage.getItem('commodityAllocations');
-    if (savedAllocations) {
-      const parsed = JSON.parse(savedAllocations);
-      setAllocations(parsed);
-      const spent = Object.values(parsed).reduce(
-        (sum: number, cat: any) => sum + (cat.totalCost || 0),
-        0
-      );
-      setTotalSpent(spent);
-    }
+    loadFromFirestore();
 
     // Fade in animation
     if (containerRef.current) {
@@ -83,7 +104,7 @@ export default function PlannerPage() {
         { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
       );
     }
-  }, []);
+  }, [user]);
 
   // Entitlement calculation — uses user-configurable commodity value per meal from onboarding
   const profileValuePerMeal = (profile as any)?.commodityValuePerMeal;
@@ -120,8 +141,10 @@ export default function PlannerPage() {
         position: 'relative',
         overflow: 'hidden',
         py: 4,
+        pt: 8,
       }}
     >
+      <UserHeader />
       {/* Background shapes */}
       <Box
         sx={{
@@ -161,44 +184,6 @@ export default function PlannerPage() {
             <ArrowBackIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1 }} />
-          {/* Fill Example Data Button */}
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<AutoFixHighIcon />}
-            onClick={() => {
-              // Pre-populate with realistic allocations for demo (includes scratch vs processed breakdown)
-              const exampleAllocations = {
-                beef: { category: 'beef', totalCost: 13150, totalServings: 24800, scratchCost: 9750, processedCost: 3400, scratchServings: 17200, processedServings: 7600, items: [] },
-                poultry: { category: 'poultry', totalCost: 18500, totalServings: 42000, scratchCost: 12800, processedCost: 5700, scratchServings: 28000, processedServings: 14000, items: [] },
-                pork: { category: 'pork', totalCost: 8200, totalServings: 18000, scratchCost: 6200, processedCost: 2000, scratchServings: 13500, processedServings: 4500, items: [] },
-                fish: { category: 'fish', totalCost: 5600, totalServings: 8000, scratchCost: 4200, processedCost: 1400, scratchServings: 5600, processedServings: 2400, items: [] },
-                vegetables: { category: 'vegetables', totalCost: 45000, totalServings: 180000, scratchCost: 38000, processedCost: 7000, scratchServings: 150000, processedServings: 30000, items: [] },
-                fruits: { category: 'fruits', totalCost: 35000, totalServings: 120000, scratchCost: 28000, processedCost: 7000, scratchServings: 96000, processedServings: 24000, items: [] },
-                grains: { category: 'grains', totalCost: 12000, totalServings: 90000, scratchCost: 12000, processedCost: 0, scratchServings: 90000, processedServings: 0, items: [] },
-                dairy: { category: 'dairy', totalCost: 22000, totalServings: 55000, scratchCost: 16000, processedCost: 6000, scratchServings: 40000, processedServings: 15000, items: [] },
-                legumes: { category: 'legumes', totalCost: 4000, totalServings: 35000, scratchCost: 3200, processedCost: 800, scratchServings: 28000, processedServings: 7000, items: [] },
-              };
-              localStorage.setItem('commodityAllocations', JSON.stringify(exampleAllocations));
-              // Refresh state
-              setAllocations(exampleAllocations);
-              const spent = Object.values(exampleAllocations).reduce(
-                (sum, cat) => sum + cat.totalCost, 0
-              );
-              setTotalSpent(spent);
-            }}
-            sx={{
-              mr: 2,
-              borderColor: 'rgba(76, 175, 80, 0.4)',
-              color: 'rgba(76, 175, 80, 0.8)',
-              '&:hover': {
-                borderColor: 'rgba(76, 175, 80, 0.7)',
-                bgcolor: 'rgba(76, 175, 80, 0.05)',
-              },
-            }}
-          >
-            Fill Demo Data
-          </Button>
           <SpaOutlinedIcon sx={{ color: 'rgba(76, 175, 80, 0.5)', fontSize: 28 }} />
         </Box>
 
