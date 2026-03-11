@@ -89,6 +89,7 @@ export default function CategoryPage() {
   // State — allocations is the working copy; changes are NOT auto-saved
   const [commodities, setCommodities] = useState<Commodity[]>([]);
   const [allocations, setAllocations] = useState<Map<string, number>>(new Map());
+  const [flavorOnly, setFlavorOnly] = useState<Set<string>>(new Set()); // Items toggled to "for flavor only" (no serving credit)
   const [loading, setLoading] = useState(true);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -191,7 +192,9 @@ export default function CategoryPage() {
         Math.round((caseWeight * 16 * 0.75) / (commodity.serving_size || 2.0));
       const totalLbs = cases * caseWeight;
       const cost = Math.round(totalLbs * commodity.est_cost_per_lb * 100) / 100;
-      const servings = cases * servingsPerCase;
+      // If item is "flavor only", it still costs but provides 0 credited servings
+      const isFlavorOnlyItem = flavorOnly.has(wbscmId);
+      const servings = isFlavorOnlyItem ? 0 : cases * servingsPerCase;
 
       items.push({
         wbscmId,
@@ -207,7 +210,7 @@ export default function CategoryPage() {
     });
 
     return { items, totalCost: Math.round(totalCost * 100) / 100, totalServings };
-  }, [allocations, commodities]);
+  }, [allocations, commodities, flavorOnly]);
 
   /**
    * @brief Explicitly save current allocations to localStorage + Firestore.
@@ -426,6 +429,15 @@ export default function CategoryPage() {
                 onQuantityChange={(delta) => updateQuantity(commodity.wbscm_id, delta)}
                 onSetQuantity={(val) => setQuantity(commodity.wbscm_id, val)}
                 isRecommended
+                isFlavorOnly={flavorOnly.has(commodity.wbscm_id)}
+                onToggleFlavorOnly={() => {
+                  setFlavorOnly(prev => {
+                    const next = new Set(prev);
+                    if (next.has(commodity.wbscm_id)) next.delete(commodity.wbscm_id);
+                    else next.add(commodity.wbscm_id);
+                    return next;
+                  });
+                }}
               />
             ))}
             {recommended.length === 0 && (
@@ -451,6 +463,15 @@ export default function CategoryPage() {
                 onQuantityChange={(delta) => updateQuantity(commodity.wbscm_id, delta)}
                 onSetQuantity={(val) => setQuantity(commodity.wbscm_id, val)}
                 isRecommended={false}
+                isFlavorOnly={flavorOnly.has(commodity.wbscm_id)}
+                onToggleFlavorOnly={() => {
+                  setFlavorOnly(prev => {
+                    const next = new Set(prev);
+                    if (next.has(commodity.wbscm_id)) next.delete(commodity.wbscm_id);
+                    else next.add(commodity.wbscm_id);
+                    return next;
+                  });
+                }}
               />
             ))}
             {processed.length === 0 && (
@@ -618,12 +639,16 @@ function CommodityCard({
   onQuantityChange,
   onSetQuantity,
   isRecommended,
+  isFlavorOnly,
+  onToggleFlavorOnly,
 }: {
   commodity: Commodity;
   quantity: number;
   onQuantityChange: (delta: number) => void;
   onSetQuantity: (val: number) => void;
   isRecommended: boolean;
+  isFlavorOnly: boolean;
+  onToggleFlavorOnly: () => void;
 }) {
   const caseWeight = commodity.case_weight_lbs || 40;
   const servingSize = commodity.serving_size || 2.0;
@@ -798,9 +823,29 @@ function CommodityCard({
               ${estimatedCost.toLocaleString()}
             </Typography>
           </Box>
-          <Typography variant="body2" sx={{ color: 'rgba(255, 152, 0, 0.9)', fontWeight: 500 }}>
-            {totalServings.toLocaleString()} servings
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="body2" sx={{ color: isFlavorOnly ? 'rgba(97,97,97,0.5)' : 'rgba(255, 152, 0, 0.9)', fontWeight: 500, textDecoration: isFlavorOnly ? 'line-through' : 'none' }}>
+              {isFlavorOnly ? `${totalServings.toLocaleString()} srv (not credited)` : `${totalServings.toLocaleString()} servings`}
+            </Typography>
+            {/* Credit Toggle Button */}
+            <Chip
+              size="small"
+              label={isFlavorOnly ? '🍳 Flavor Only' : '✓ For Credit'}
+              onClick={onToggleFlavorOnly}
+              sx={{
+                height: 22,
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                bgcolor: isFlavorOnly ? 'rgba(156, 39, 176, 0.1)' : 'rgba(76, 175, 80, 0.1)',
+                color: isFlavorOnly ? 'rgba(156, 39, 176, 0.9)' : 'rgba(76, 175, 80, 0.9)',
+                border: isFlavorOnly ? '1px solid rgba(156, 39, 176, 0.3)' : '1px solid rgba(76, 175, 80, 0.3)',
+                '&:hover': {
+                  bgcolor: isFlavorOnly ? 'rgba(156, 39, 176, 0.2)' : 'rgba(76, 175, 80, 0.2)',
+                },
+              }}
+            />
+          </Box>
         </Box>
       )}
     </Card>
