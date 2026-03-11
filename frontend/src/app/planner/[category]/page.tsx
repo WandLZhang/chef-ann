@@ -46,7 +46,8 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { getCommodities, type Commodity } from '@/lib/api';
 import UserHeader from '@/components/UserHeader';
 import { useAuth } from '@/contexts/AuthContext';
-import { saveAllocations, loadAllocations } from '@/lib/firestore';
+import { saveAllocations, loadAllocations, loadDistrictProfile } from '@/lib/firestore';
+import { mealPatterns, gradeGroupMeta } from '@/data/mealPatterns';
 
 /** Summary for a single allocated item */
 interface AllocationSummaryItem {
@@ -93,6 +94,20 @@ export default function CategoryPage() {
   const [loading, setLoading] = useState(true);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [profile, setProfile] = useState<Record<string, any> | null>(null);
+
+  // Map category slug to USDA meal component for serving requirement lookups
+  const componentKey: 'meat_ma_oz_min' | 'veg_cups_min' | 'fruit_cups_min' | 'grain_oz_eq_min' | null =
+    ['beef', 'poultry', 'pork', 'fish', 'dairy', 'legumes'].includes(category) ? 'meat_ma_oz_min' :
+    category === 'vegetables' ? 'veg_cups_min' :
+    category === 'fruits' ? 'fruit_cups_min' :
+    category === 'grains' ? 'grain_oz_eq_min' : null;
+
+  // Load district profile for grade group breakdown
+  useEffect(() => {
+    if (!user) return;
+    loadDistrictProfile(user.uid).then(p => { if (p) setProfile(p); });
+  }, [user]);
 
   // Fetch commodities from backend (serves from comprehensive JSON)
   useEffect(() => {
@@ -404,6 +419,65 @@ export default function CategoryPage() {
             Use Example
           </Button>
         </Box>
+
+        {/* Grade Group Serving Requirements — shows how many servings each age group needs */}
+        {profile && componentKey && profile.gradeLevels && profile.gradeLevels.length > 0 && summary.totalServings > 0 && (
+          <Card
+            sx={{
+              p: 2.5,
+              mb: 3,
+              backdropFilter: 'blur(20px)',
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              borderRadius: 3,
+              border: '1px solid rgba(33, 150, 243, 0.15)',
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, color: 'rgba(33, 150, 243, 0.9)', fontSize: '0.8rem' }}>
+              📊 Grade Group Coverage — {meta.name} Servings
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(profile.gradeLevels.length, 4)}, 1fr)`, gap: 1.5 }}>
+              {(profile.gradeLevels as string[]).map((gradeId: string) => {
+                const pattern = mealPatterns[gradeId];
+                const gmeta = gradeGroupMeta[gradeId];
+                if (!pattern) return null;
+                const adp = profile.adpByGrade?.[gradeId] || 0;
+                const servingDays = profile.servingDays || 180;
+                const dailyMin = pattern.daily[componentKey];
+                // Annual servings needed for this grade group = ADP × servingDays (one serving per meal per day)
+                const annualServingsNeeded = adp * servingDays;
+                // Coverage = total servings from current selection / annual servings needed
+                const coveragePct = annualServingsNeeded > 0 ? Math.min(100, (summary.totalServings / annualServingsNeeded) * 100) : 0;
+                const isGood = coveragePct >= 80;
+
+                return (
+                  <Box key={gradeId} sx={{ p: 1.5, borderRadius: 2, bgcolor: `${gmeta?.color || 'rgba(97,97,97,0.8)'}`.replace('0.8', '0.06'), border: `1px solid ${gmeta?.color || 'rgba(97,97,97,0.8)'}`.replace('0.8', '0.15') }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                      <Typography variant="caption" sx={{ fontSize: '1rem' }}>{gmeta?.emoji}</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: gmeta?.color, fontSize: '0.7rem' }}>{pattern.label}</Typography>
+                    </Box>
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.65rem' }}>
+                      Daily min: {dailyMin} {componentKey.includes('oz') ? 'oz eq' : 'cup'} | ADP: {adp.toLocaleString()}
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.65rem' }}>
+                      Need: {annualServingsNeeded.toLocaleString()} srv/yr
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                      <Box sx={{ flex: 1, height: 6, borderRadius: 3, bgcolor: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                        <Box sx={{ height: '100%', width: `${coveragePct}%`, bgcolor: isGood ? 'rgba(76,175,80,0.7)' : 'rgba(255,152,0,0.7)', borderRadius: 3, transition: 'width 0.3s ease' }} />
+                      </Box>
+                      <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.7rem', color: isGood ? 'rgba(76,175,80,0.9)' : 'rgba(255,152,0,0.9)', minWidth: 32, textAlign: 'right' }}>
+                        {coveragePct.toFixed(0)}%
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'rgba(97,97,97,0.5)', fontSize: '0.6rem' }}>
+              Coverage = total {meta.name.toLowerCase()} servings from this category ÷ annual servings needed per grade group. Multiple protein categories contribute to the same M/MA requirement.
+            </Typography>
+          </Card>
+        )}
 
         {/* Two Column Layout */}
         <Box
