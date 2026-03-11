@@ -535,6 +535,67 @@ export default function BudgetPage() {
             );
           })()}
 
+          {/* Headroom Calculation Chain — visual step-by-step */}
+          {totalSpent > 0 && (() => {
+            const commodityCostPerMeal = annualMeals > 0 ? totalSpent / annualMeals : 0;
+            const otherFoodCost = 0.65;
+            const laborOverhead = 1.50;
+            const totalPlateCost = commodityCostPerMeal + milkCostPerMeal + otherFoodCost + laborOverhead;
+            // Approximate weighted reimbursement (85% free, 5% reduced, 10% paid + addons)
+            const reimbursement = (0.85 * 4.60) + (0.05 * 4.20) + (0.10 * 0.44) + 0.09 + 0.02 + 0.45;
+            const headroom = reimbursement - totalPlateCost;
+            const annualBudget = headroom * annualMeals;
+
+            const steps = [
+              { label: 'Avg Reimbursement', value: `$${reimbursement.toFixed(2)}`, color: 'rgba(33, 150, 243, 0.9)', icon: '💵' },
+              { label: 'Total Plate Cost', value: `$${totalPlateCost.toFixed(2)}`, color: 'rgba(255, 152, 0, 0.9)', icon: '🍽️', op: '−' },
+              { label: 'Headroom / Meal', value: `$${headroom.toFixed(2)}`, color: headroom > 0 ? 'rgba(76, 175, 80, 0.9)' : 'rgba(229, 57, 53, 0.9)', icon: '✨', op: '=' },
+              { label: 'Annual Meals', value: annualMeals.toLocaleString(), color: 'rgba(33, 150, 243, 0.9)', icon: '📊', op: '×' },
+              { label: 'Annual Upgrade Budget', value: `$${Math.round(annualBudget).toLocaleString()}`, color: headroom > 0 ? 'rgba(76, 175, 80, 0.9)' : 'rgba(229, 57, 53, 0.9)', icon: '💰', op: '=' },
+            ];
+
+            return (
+              <Box sx={{ p: 3, mb: 3, bgcolor: 'rgba(76, 175, 80, 0.04)', borderRadius: 3, border: '1px solid rgba(76, 175, 80, 0.15)' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'rgba(76, 175, 80, 0.9)' }}>
+                  🧮 Headroom Calculation Chain
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
+                  {steps.map((step, idx) => (
+                    <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {step.op && (
+                        <Typography variant="h5" sx={{ fontWeight: 300, color: 'rgba(97,97,97,0.5)', mx: 0.5 }}>
+                          {step.op}
+                        </Typography>
+                      )}
+                      <Box sx={{
+                        p: 1.5, px: 2, borderRadius: 2, textAlign: 'center', minWidth: 100,
+                        bgcolor: idx === steps.length - 1 ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255,255,255,0.8)',
+                        border: idx === steps.length - 1 ? '2px solid rgba(76, 175, 80, 0.4)' : '1px solid rgba(0,0,0,0.08)',
+                      }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block' }}>
+                          {step.icon} {step.label}
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 700, color: step.color, fontFamily: '"Google Sans", sans-serif' }}>
+                          {step.value}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+                {headroom > 0 && (
+                  <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1.5, color: 'rgba(76, 175, 80, 0.7)' }}>
+                    💡 You have ${headroom.toFixed(2)}/meal available for scratch cooking upgrades, local sourcing, and whole-muscle proteins
+                  </Typography>
+                )}
+                {headroom <= 0 && (
+                  <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1.5, color: 'rgba(229, 57, 53, 0.7)' }}>
+                    ⚠️ Plate cost exceeds reimbursement — consider reducing non-commodity food or labor costs
+                  </Typography>
+                )}
+              </Box>
+            );
+          })()}
+
           {/* Analyze Button */}
           <Button
             variant="contained"
