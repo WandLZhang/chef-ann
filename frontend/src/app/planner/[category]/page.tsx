@@ -830,6 +830,20 @@ function CommodityCard({
                 sx={{ fontSize: '0.7rem', height: 22 }}
               />
             )}
+            {commodity.items_per_case && (
+              <Chip
+                size="small"
+                label={`📦 ${commodity.items_per_case} ct/case`}
+                sx={{ fontSize: '0.7rem', height: 22, bgcolor: 'rgba(156, 39, 176, 0.08)', color: 'rgba(156, 39, 176, 0.8)' }}
+              />
+            )}
+            {commodity.usda_subgroup && (
+              <Chip
+                size="small"
+                label={commodity.usda_subgroup}
+                sx={{ fontSize: '0.65rem', height: 22, bgcolor: 'rgba(33, 150, 243, 0.08)', color: 'rgba(33, 150, 243, 0.8)', fontWeight: 500 }}
+              />
+            )}
             {commodity.has_additives && (
               <Chip
                 size="small"
