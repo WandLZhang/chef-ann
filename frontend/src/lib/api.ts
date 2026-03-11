@@ -33,31 +33,65 @@ export interface AllocationResult {
 }
 
 /**
- * @brief Commodity data from usda_foods_comprehensive.json (source of truth)
+ * @brief Commodity data from usda_foods_comprehensive.json v2 (source of truth)
  * 
- * @details All fields come from USDA Product Info Sheet PDFs, enriched with
- * est_cost_per_lb from legacy FAL data and caf_recommended derived from processing_level.
+ * @details All fields extracted from USDA Product Info Sheet PDFs via Gemini.
+ * v2 schema includes scratch cooking classification, additive detection,
+ * structured CN credits, allergens, vegetable subgroups, and full nutrition.
  */
 export interface Commodity {
   wbscm_id: string;
   description: string;
-  category: string;
-  caf_recommended: boolean;
-  processing_level: string;
-  est_cost_per_lb: number;
+  
+  // Classification
+  usda_category: string;
+  usda_subgroup: string | null;          // Only for vegetables: Dark Green, Red/Orange, etc.
+  app_category: string;                  // Frontend route slug: beef, poultry, etc.
+  caf_recommended: boolean;              // Derived from is_scratch_cooking by backend
+  
+  // Pack info
+  est_cost_per_lb: number;               // Added by backend from DEFAULT_COST_PER_LB
   case_weight_lbs: number | null;
-  servings_per_case: number | null;
-  serving_size_oz: number | null;
-  cn_credit_oz: number | null;
-  cn_credit_category: string | null;
   pack_size_description: string | null;
+  items_per_case: number | null;         // Count for fresh fruit, patties, etc.
+  
+  // Serving & crediting
+  servings_per_case: number | null;
+  serving_size: number | null;           // Numeric serving size amount
+  serving_size_unit: string | null;      // oz, cup, tbsp, each
+  cn_credit_amount: number | null;       // Numeric CN credit per serving
+  cn_credit_unit: string | null;         // oz_eq or cup
+  cn_credit_component: string | null;    // meat_alternate, grain, fruit, dark_green_veg, etc.
+  cn_credit_statement: string | null;    // Full verbatim CN crediting text
+  
+  // Scratch cooking & additives
+  is_scratch_cooking: boolean;
+  has_additives: boolean;
+  additive_list: string[];
+  product_form: string | null;           // raw_ground, whole_frozen, cooked_canned, etc.
+  storage_state: string | null;          // frozen, canned, fresh, shelf_stable
+  
+  // Allergens
+  allergens: string[];
+  allergen_free: boolean;
+  
+  // Full nutrition (per serving)
   calories_per_serving: number | null;
-  protein_per_serving: number | null;
-  notes: string | null;
+  total_fat_g: number | null;
+  saturated_fat_g: number | null;
+  trans_fat_g: number | null;
+  cholesterol_mg: number | null;
+  sodium_mg: number | null;
+  total_carb_g: number | null;
+  dietary_fiber_g: number | null;
+  sugars_g: number | null;
+  added_sugars_g: number | null;
+  protein_g: number | null;
+  
+  // Metadata
   source_url: string | null;
-  // Legacy fields (fallback only)
-  pack_size?: string;
-  yield_factor?: number;
+  pdf_date: string | null;
+  culinary_tips: string | null;
 }
 
 export interface StreamEvent {

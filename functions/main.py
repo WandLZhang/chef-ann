@@ -56,9 +56,9 @@ DISTRICT_PROFILE = load_json("district_profile.json")
 
 logger.info(f"Loaded {len(COMMODITIES_COMPREHENSIVE.get('all_products', []))} comprehensive products")
 
-# Category mapping: frontend route slug → comprehensive JSON category key(s)
-# Verified from comprehensive JSON: beans(16), beef(10), cheese(14), dairy(4),
-# eggs(3), fish(2), fruits(34), grains(17), other(2), pork(6), poultry(16), vegetables(37)
+# Category mapping: frontend route slug → comprehensive JSON app_category key(s)
+# v2 extraction uses app_category directly: beans(16), beef(10), cheese(14), dairy(4),
+# eggs(3), fish(2), fruits(42), grains(16), pork(6), poultry(16), vegetables(32)
 CATEGORY_MAP = {
     'beef': ['beef'],
     'poultry': ['poultry'],
@@ -67,9 +67,8 @@ CATEGORY_MAP = {
     'vegetables': ['vegetables'],
     'fruits': ['fruits'],
     'grains': ['grains'],
-    'dairy': ['dairy', 'cheese', 'eggs'],  # Merge yogurts + cheeses + eggs
-    'legumes': ['beans'],
-    'other': ['other'],
+    'dairy': ['dairy', 'cheese', 'eggs'],  # Merge yogurts + cheeses + eggs into one frontend tab
+    'legumes': ['beans'],                   # Includes peanut butter, sunflower butter (credit as meat_alternate)
 }
 
 # Default cost estimates by category ($/lb)
@@ -147,12 +146,12 @@ def stream_gemini(prompt: str, enable_code_execution: bool = True):
 
 
 def _add_cost_to_product(product: dict) -> dict:
-    """Add est_cost_per_lb and caf_recommended to a comprehensive product using category defaults."""
+    """Enrich a v2 product with est_cost_per_lb. Uses is_scratch_cooking directly from v2 data."""
     enriched = dict(product)
-    cat = product.get('category', 'other')
+    cat = product.get('app_category', 'other')
     enriched['est_cost_per_lb'] = DEFAULT_COST_PER_LB.get(cat, 2.00)
-    # Derive caf_recommended from processing_level
-    enriched['caf_recommended'] = product.get('processing_level', 'processed') == 'raw'
+    # v2 schema has is_scratch_cooking directly — use it for caf_recommended (frontend compat)
+    enriched['caf_recommended'] = product.get('is_scratch_cooking', False)
     return enriched
 
 
@@ -234,7 +233,7 @@ def handle_stream_allocate(data):
         if commodity:
             case_weight = commodity.get('case_weight_lbs', 40)
             servings_per_case = commodity.get('servings_per_case')
-            cat = commodity.get('category', 'other')
+            cat = commodity.get('app_category', 'other')
             
             items_data.append({
                 "wbscm_id": wbscm_id,
@@ -243,8 +242,11 @@ def handle_stream_allocate(data):
                 "case_weight_lbs": case_weight,
                 "quantity_lbs": quantity_cases * case_weight,
                 "servings_per_case": servings_per_case,
-                "serving_size_oz": commodity.get('serving_size_oz', 2.0),
-                "cn_credit_oz": commodity.get('cn_credit_oz', 2.0),
+                "serving_size": commodity.get('serving_size'),
+                "serving_size_unit": commodity.get('serving_size_unit', 'oz'),
+                "cn_credit_amount": commodity.get('cn_credit_amount'),
+                "cn_credit_unit": commodity.get('cn_credit_unit'),
+                "cn_credit_component": commodity.get('cn_credit_component'),
                 "est_cost_per_lb": DEFAULT_COST_PER_LB.get(cat, 2.00),
                 "source": "usda_product_sheet"
             })

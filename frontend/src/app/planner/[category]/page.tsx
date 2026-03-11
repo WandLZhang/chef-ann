@@ -188,7 +188,7 @@ export default function CategoryPage() {
 
       const caseWeight = commodity.case_weight_lbs || 40;
       const servingsPerCase = commodity.servings_per_case || 
-        Math.round((caseWeight * 16 * (commodity.yield_factor || 0.75)) / (commodity.serving_size_oz || 2.0));
+        Math.round((caseWeight * 16 * 0.75) / (commodity.serving_size || 2.0));
       const totalLbs = cases * caseWeight;
       const cost = Math.round(totalLbs * commodity.est_cost_per_lb * 100) / 100;
       const servings = cases * servingsPerCase;
@@ -604,12 +604,13 @@ function CommodityCard({
   isRecommended: boolean;
 }) {
   const caseWeight = commodity.case_weight_lbs || 40;
-  const servingSizeOz = commodity.serving_size_oz || 2.0;
+  const servingSize = commodity.serving_size || 2.0;
+  const servingSizeUnit = commodity.serving_size_unit || 'oz';
   // Use servings_per_case from USDA Product Info Sheet (yield already baked in)
-  // Fallback: compute from case weight, yield factor, and serving size
   const servingsPerCase = commodity.servings_per_case || 
-    Math.round((caseWeight * 16 * (commodity.yield_factor || 0.75)) / servingSizeOz);
-  const cnCredit = commodity.cn_credit_oz || 2.0;
+    Math.round((caseWeight * 16 * 0.75) / servingSize);
+  const cnCreditAmount = commodity.cn_credit_amount;
+  const cnCreditUnit = commodity.cn_credit_unit || 'oz_eq';
   
   // Build tooltip
   const caseInfoTooltip = (
@@ -621,19 +622,21 @@ function CommodityCard({
         • {caseWeight} lbs/case
       </Typography>
       <Typography variant="caption" sx={{ display: 'block' }}>
-        • {servingsPerCase.toLocaleString()} servings/case ({servingSizeOz} oz each)
+        • {servingsPerCase.toLocaleString()} servings/case ({servingSize} {servingSizeUnit} each)
       </Typography>
-      <Typography variant="caption" sx={{ display: 'block' }}>
-        • CN Credit: {cnCredit} oz eq {commodity.cn_credit_category || ''}
-      </Typography>
-      {commodity.calories_per_serving && (
+      {cnCreditAmount && (
         <Typography variant="caption" sx={{ display: 'block' }}>
-          • {commodity.calories_per_serving} cal, {commodity.protein_per_serving}g protein/srv
+          • CN Credit: {cnCreditAmount} {cnCreditUnit} {commodity.cn_credit_component || ''}
         </Typography>
       )}
-      {commodity.notes && (
+      {commodity.calories_per_serving && (
+        <Typography variant="caption" sx={{ display: 'block' }}>
+          • {commodity.calories_per_serving} cal, {commodity.protein_g}g protein/srv
+        </Typography>
+      )}
+      {commodity.cn_credit_statement && (
         <Typography variant="caption" sx={{ display: 'block', mt: 0.5, fontStyle: 'italic', maxWidth: 280 }}>
-          {commodity.notes}
+          {commodity.cn_credit_statement}
         </Typography>
       )}
     </Box>
@@ -683,7 +686,7 @@ function CommodityCard({
             )}
           </Box>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            WBSCM: {commodity.wbscm_id} | {commodity.pack_size_description || commodity.pack_size || `${caseWeight} lb case`}
+            WBSCM: {commodity.wbscm_id} | {commodity.pack_size_description || `${caseWeight} lb case`}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
             <Tooltip title={caseInfoTooltip}>
@@ -699,11 +702,25 @@ function CommodityCard({
               label={`${servingsPerCase.toLocaleString()} srv/case`}
               sx={{ fontSize: '0.7rem', height: 22, bgcolor: 'rgba(255, 152, 0, 0.1)' }}
             />
-            {commodity.serving_size_oz && (
+            {commodity.serving_size && (
               <Chip
                 size="small"
-                label={`${commodity.serving_size_oz} oz/srv`}
+                label={`${commodity.serving_size} ${commodity.serving_size_unit || 'oz'}/srv`}
                 sx={{ fontSize: '0.7rem', height: 22 }}
+              />
+            )}
+            {commodity.has_additives && (
+              <Chip
+                size="small"
+                label={`⚠️ ${commodity.additive_list.join(', ')}`}
+                sx={{ fontSize: '0.7rem', height: 22, bgcolor: 'rgba(255, 152, 0, 0.15)', color: 'rgba(230, 81, 0, 0.9)', fontWeight: 600 }}
+              />
+            )}
+            {commodity.allergens.length > 0 && (
+              <Chip
+                size="small"
+                label={`🥜 ${commodity.allergens.join(', ')}`}
+                sx={{ fontSize: '0.65rem', height: 22, bgcolor: 'rgba(229, 57, 53, 0.1)', color: 'rgba(183, 28, 28, 0.8)' }}
               />
             )}
           </Box>
