@@ -232,10 +232,32 @@ export default function CategoryPage() {
     }
 
     if (items.length > 0) {
+      // Compute scratch vs processed split for export page metrics
+      let scratchCost = 0, processedCost = 0, scratchServings = 0, processedServings = 0;
+      let cleanItems = 0, totalItems = items.length;
+      items.forEach(i => {
+        const commodity = commodities.find(c => c.wbscm_id === i.wbscmId);
+        if (commodity?.is_scratch_cooking) {
+          scratchCost += i.cost;
+          scratchServings += i.servings;
+        } else {
+          processedCost += i.cost;
+          processedServings += i.servings;
+        }
+        if (commodity && !commodity.has_additives) {
+          cleanItems++;
+        }
+      });
+
       allAllocations[category] = {
         category,
         totalCost,
         totalServings,
+        scratchCost: Math.round(scratchCost * 100) / 100,
+        processedCost: Math.round(processedCost * 100) / 100,
+        scratchServings,
+        processedServings,
+        cleanItemsPct: totalItems > 0 ? Math.round((cleanItems / totalItems) * 100) : 100,
         items: items.map(i => ({ wbscmId: i.wbscmId, cases: i.cases, cost: i.cost, servings: i.servings })),
       };
     } else {

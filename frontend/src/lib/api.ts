@@ -235,11 +235,13 @@ export function streamCompliance(
 export function streamBudget(
   totalCommoditySpend: number,
   totalAnnualMeals: number,
-  callbacks: StreamCallbacks
+  callbacks: StreamCallbacks,
+  milkCostPerMeal: number = 0.25,
 ): Promise<void> {
   return streamRequest('/api/stream/budget', {
     total_commodity_spend: totalCommoditySpend,
     total_annual_meals: totalAnnualMeals,
+    milk_cost_per_meal: milkCostPerMeal,
   }, callbacks);
 }
 

@@ -152,7 +152,7 @@ export default function BudgetPage() {
     };
 
     try {
-      await streamBudget(totalSpent, annualMeals, callbacks);
+      await streamBudget(totalSpent, annualMeals, callbacks, milkCostPerMeal);
     } catch (error) {
       console.error('Stream error:', error);
       setLoading(false);

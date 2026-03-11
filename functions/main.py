@@ -341,6 +341,7 @@ def handle_stream_budget(data):
     total_spend = data.get('total_commodity_spend', 185000)
     annual_meals = data.get('total_annual_meals', 3397500)
     other_food = data.get('other_food_cost_per_meal', 0.65)
+    milk_cost = data.get('milk_cost_per_meal', 0.25)
     labor = data.get('labor_overhead_per_meal', 1.50)
     
     rates = DISTRICT_PROFILE.get("reimbursement_rates", {})
@@ -356,17 +357,18 @@ Calculate budget headroom for values-aligned upgrades.
 **Costs:**
 - Total Commodity Spend: ${total_spend:,.2f}
 - Annual Meals: {annual_meals:,}
+- Milk Cost: ${milk_cost}/meal (procured separately from USDA commodities)
 - Non-Commodity Food: ${other_food}/meal
 - Labor & Overhead: ${labor}/meal
 
 Using Python, calculate:
 1. Weighted Average Reimbursement Rate
 2. Commodity Cost per Meal
-3. Total Food Cost per Meal
+3. Total Food Cost per Meal (Commodity + Milk + Non-Commodity)
 4. Food Cost as % of Reimbursement (target: 40-50%)
-5. Total Plate Cost
+5. Total Plate Cost (Food + Labor/Overhead)
 6. Budget Headroom (Reimbursement - Plate Cost)
-7. Annual Upgrade Budget
+7. Annual Upgrade Budget (Headroom × Annual Meals)
 
 Print JSON results.
 """
