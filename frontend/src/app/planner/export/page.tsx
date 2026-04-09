@@ -1,7 +1,7 @@
 /**
  * @file planner/export/page.tsx
  * @brief Export & Order Summary page with WBSCM IDs
- * 
+ *
  * @details Shows final order table with CSV export for WBSCM upload.
  * Includes detailed item breakdown with WBSCM IDs.
  */
@@ -84,7 +84,7 @@ export default function ExportPage() {
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalServings, setTotalServings] = useState(0);
   const [districtName, setDistrictName] = useState('');
-  const entitlement = 485000;
+  const [entitlement, setEntitlement] = useState(485000);
 
   useEffect(() => {
     const saved = localStorage.getItem('commodityAllocations');
@@ -107,6 +107,12 @@ export default function ExportPage() {
     if (profile) {
       const parsed = JSON.parse(profile);
       setDistrictName(parsed.districtName || 'District');
+      // Use real WBSCM entitlement if available, otherwise fall back to calculated or default
+      if (parsed.entitlementAmount && parsed.entitlementAmount > 0) {
+        setEntitlement(parsed.entitlementAmount);
+      } else if (parsed.totalAnnualMeals && parsed.commodityValuePerMeal) {
+        setEntitlement(Math.round(parsed.totalAnnualMeals * parsed.commodityValuePerMeal));
+      }
     }
   }, []);
 
@@ -127,7 +133,7 @@ export default function ExportPage() {
   const downloadCSV = () => {
     // Generate detailed CSV with WBSCM IDs
     let csv = 'WBSCM_ID,Product_Description,Pack_Size,Category,Quantity_Cases,Cost,Servings\n';
-    
+
     // Add individual items if we have them
     if (allItems.length > 0) {
       allItems.forEach(({ category, item }) => {
@@ -140,13 +146,13 @@ export default function ExportPage() {
         csv += `N/A,"${cat.category} (Category Total)","N/A",${cat.category},N/A,${cat.totalCost.toFixed(2)},${cat.totalServings}\n`;
       });
     }
-    
+
     csv += `\n\nSUMMARY\n`;
     csv += `Total Entitlement,$${entitlement}\n`;
     csv += `Total Allocated,$${totalSpent}\n`;
     csv += `Utilization,${progressPct.toFixed(1)}%\n`;
     csv += `Total Servings,${totalServings}\n`;
-    
+
     // Download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -306,9 +312,9 @@ export default function ExportPage() {
             let totalProcessedCost = 0;
             let totalScratchServings = 0;
             let totalProcessedServings = 0;
-            
+
             const categoryBreakdowns: { category: string; scratchCost: number; processedCost: number; scratchPct: number }[] = [];
-            
+
             Object.entries(allocations).forEach(([category, data]) => {
               const sc = data.scratchCost ?? data.totalCost;
               const pc = data.processedCost ?? 0;
@@ -323,22 +329,22 @@ export default function ExportPage() {
                 scratchPct: data.totalCost > 0 ? (sc / data.totalCost) * 100 : 100,
               });
             });
-            
+
             const scratchPct = totalSpent > 0 ? (totalScratchCost / totalSpent) * 100 : 0;
             const processedPct = 100 - scratchPct;
-            
+
             // SVG donut chart calculations
             const radius = 70;
             const circumference = 2 * Math.PI * radius;
             const scratchDash = (scratchPct / 100) * circumference;
-            
+
             return (
               <>
                 <Divider sx={{ mb: 3 }} />
                 <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
                   🌿 Procurement Values Breakdown
                 </Typography>
-                
+
                 <Box
                   sx={{
                     display: 'grid',
@@ -389,7 +395,7 @@ export default function ExportPage() {
                         Cooking
                       </text>
                     </svg>
-                    
+
                     {/* Legend */}
                     <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -402,7 +408,7 @@ export default function ExportPage() {
                       </Box>
                     </Box>
                   </Box>
-                  
+
                   {/* Summary Stats */}
                   <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
                     {/* Scratch Cooking Row */}
@@ -432,7 +438,7 @@ export default function ExportPage() {
                         <Box sx={{ height: '100%', width: `${scratchPct}%`, bgcolor: 'rgba(76, 175, 80, 0.7)', borderRadius: 4, transition: 'width 0.5s ease' }} />
                       </Box>
                     </Box>
-                    
+
                     {/* Processed Row */}
                     <Box sx={{ p: 2, bgcolor: 'rgba(255, 152, 0, 0.06)', borderRadius: 2, border: '1px solid rgba(255, 152, 0, 0.15)' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -460,7 +466,7 @@ export default function ExportPage() {
                         <Box sx={{ height: '100%', width: `${processedPct}%`, bgcolor: 'rgba(255, 152, 0, 0.5)', borderRadius: 4, transition: 'width 0.5s ease' }} />
                       </Box>
                     </Box>
-                    
+
                     {/* Recommendation nudge */}
                     {processedPct > 30 && (
                       <Box sx={{ p: 1.5, bgcolor: 'rgba(255, 243, 224, 0.8)', borderRadius: 2, border: '1px solid rgba(255, 152, 0, 0.2)' }}>
@@ -471,7 +477,7 @@ export default function ExportPage() {
                     )}
                   </Box>
                 </Box>
-                
+
                 {/* Per-Category Scratch vs Processed Breakdown */}
                 <TableContainer sx={{ mb: 3 }}>
                   <Table size="small">

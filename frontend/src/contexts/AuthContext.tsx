@@ -6,7 +6,8 @@
  * localStorage from Firestore so the user's saved data is immediately available.
  * On logout, clears localStorage so the next user gets a clean slate.
  *
- * Approved users are checked against a hardcoded allowlist.
+ * Auth is enforced by Firebase Auth itself — only pre-provisioned accounts
+ * (created via admin script from district xlsx data) can sign in.
  *
  * @author Willis Zhang
  * @date 2026-03-10
@@ -19,13 +20,11 @@ import { User, onAuthStateChanged, signInWithEmailAndPassword, signOut as fireba
 import { auth } from '@/lib/firebase';
 import { hydrateFromFirestore } from '@/lib/firestore';
 
-/** Approved user emails — only these accounts can log in */
-const APPROVED_USERS = [
-  'williszhang@google.com',
-  'ngoren@google.com',
-  'lori.nelson@chefannfoundation.org',
-  'test@williszhang.altostrat.com',
-];
+/**
+ * Auth is now enforced by Firebase Auth itself — only users with
+ * pre-created accounts (via admin script) can sign in.
+ * No client-side allowlist needed (avoids exposing PII in the bundle).
+ */
 
 interface AuthContextType {
   /** The currently authenticated Firebase user, or null */
@@ -90,24 +89,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * @brief Sign in with email and password.
    *
-   * @details Validates that the email is in the approved users list before
-   * attempting Firebase Auth sign-in.
+   * @details Auth is enforced by Firebase Auth — only pre-created accounts
+   * (provisioned via admin script from district xlsx data) can sign in.
+   * No client-side allowlist needed.
    *
    * @param email The user's email address.
    * @param password The shared password.
    */
   const signIn = async (email: string, password: string): Promise<void> => {
     setAuthError(null);
-    console.log('[auth] Sign-in attempt for:', email);
-
-    // Check if user is approved
     const normalizedEmail = email.toLowerCase().trim();
-    if (!APPROVED_USERS.includes(normalizedEmail)) {
-      const error = 'This email is not authorized. Please contact your administrator.';
-      console.log('[auth] Rejected — email not in approved list:', normalizedEmail);
-      setAuthError(error);
-      throw new Error(error);
-    }
+    console.log('[auth] Sign-in attempt for:', normalizedEmail);
 
     try {
       const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);

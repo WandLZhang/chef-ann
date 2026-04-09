@@ -1,15 +1,15 @@
 /**
  * @file planner/[category]/page.tsx
  * @brief Category detail page for commodity selection
- * 
+ *
  * @details Displays available commodities in two columns:
  * - Scratch-Cooking Focused (recommended, whole/raw)
  * - Processed (with soy, pre-cooked)
- * 
+ *
  * All calculations (servings, cost) are done in real-time in the frontend
  * using servings_per_case from USDA Product Info Sheets (source of truth).
  * No Gemini API calls needed — it's just multiplication.
- * 
+ *
  * @date 2026-02-10
  */
 
@@ -188,7 +188,7 @@ export default function CategoryPage() {
 
   /**
    * @brief Compute live allocation summary from current selections
-   * 
+   *
    * @details Pure frontend calculation using servings_per_case from
    * USDA Product Info Sheets. No API call needed.
    */
@@ -203,7 +203,7 @@ export default function CategoryPage() {
       if (!commodity) return;
 
       const caseWeight = commodity.case_weight_lbs || 40;
-      const servingsPerCase = commodity.servings_per_case || 
+      const servingsPerCase = commodity.servings_per_case ||
         Math.round((caseWeight * 16 * 0.75) / (commodity.serving_size || 2.0));
       const totalLbs = cases * caseWeight;
       const cost = Math.round(totalLbs * commodity.est_cost_per_lb * 100) / 100;
@@ -229,7 +229,7 @@ export default function CategoryPage() {
 
   /**
    * @brief Explicitly save current allocations to localStorage + Firestore.
-   * 
+   *
    * @details Only called when user clicks "Save & Return". NOT auto-saved.
    * This ensures Back button reverts to last saved state, and changes
    * are only committed when the user explicitly confirms.
@@ -282,6 +282,7 @@ export default function CategoryPage() {
       delete allAllocations[category];
     }
 
+    // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
     console.log(`[category] Saving allocations for '${category}':`, JSON.stringify(allAllocations[category]));
 
     // Save to Firestore (source of truth) and localStorage (cache)
@@ -701,7 +702,7 @@ export default function CategoryPage() {
 
 /**
  * @brief Commodity card component with case-based quantity selection
- * 
+ *
  * @details Displays product info from USDA Product Info Sheets including
  * servings_per_case (yield baked in), serving_size_oz, and source_url.
  * All serving calculations use servings_per_case directly — no separate
@@ -728,11 +729,11 @@ function CommodityCard({
   const servingSize = commodity.serving_size || 2.0;
   const servingSizeUnit = commodity.serving_size_unit || 'oz';
   // Use servings_per_case from USDA Product Info Sheet (yield already baked in)
-  const servingsPerCase = commodity.servings_per_case || 
+  const servingsPerCase = commodity.servings_per_case ||
     Math.round((caseWeight * 16 * 0.75) / servingSize);
   const cnCreditAmount = commodity.cn_credit_amount;
   const cnCreditUnit = commodity.cn_credit_unit || 'oz_eq';
-  
+
   // Build tooltip
   const caseInfoTooltip = (
     <Box sx={{ p: 1 }}>

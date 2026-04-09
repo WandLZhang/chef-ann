@@ -106,17 +106,23 @@ export default function PlannerPage() {
     }
   }, [user]);
 
-  // Entitlement calculation — uses user-configurable commodity value per meal from onboarding
+  // Entitlement — prefer real WBSCM data (frozen from admin), fall back to calculated
   const profileValuePerMeal = (profile as any)?.commodityValuePerMeal;
   const COMMODITY_VALUE_PER_MEAL = (typeof profileValuePerMeal === 'number' && profileValuePerMeal > 0)
     ? profileValuePerMeal
     : 0.45; // USDA FNS default, effective July 2025
   const annualMeals = profile?.totalAnnualMeals || (totalADP * 180);
-  const entitlement = Math.round(annualMeals * COMMODITY_VALUE_PER_MEAL);
+  const wbscmEntitlement = (profile as any)?.entitlementAmount;
+  const entitlement = (typeof wbscmEntitlement === 'number' && wbscmEntitlement > 0)
+    ? wbscmEntitlement
+    : Math.round(annualMeals * COMMODITY_VALUE_PER_MEAL);
+  const wbscmDodFresh = (profile as any)?.dodFreshAmount;
   const dodFreshPct = 0.2;
   const brownBoxPct = 0.8;
-  const dodFresh = Math.round(entitlement * dodFreshPct);
-  const brownBox = Math.round(entitlement * brownBoxPct);
+  const dodFresh = (typeof wbscmDodFresh === 'number' && wbscmDodFresh > 0)
+    ? wbscmDodFresh
+    : Math.round(entitlement * dodFreshPct);
+  const brownBox = entitlement - dodFresh;
   const remaining = entitlement - totalSpent;
   const progressPct = entitlement > 0 ? (totalSpent / entitlement) * 100 : 0;
 
@@ -351,7 +357,7 @@ export default function PlannerPage() {
               </Typography>
             </Box>
           </Box>
-          
+
           {/* Fluid progress bar */}
           <Box
             sx={{
@@ -394,7 +400,7 @@ export default function PlannerPage() {
               }}
             />
           </Box>
-          
+
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 600, color: 'rgba(76, 175, 80, 0.9)' }}>
@@ -584,7 +590,7 @@ export default function PlannerPage() {
           {categories.map((cat) => {
             const catAllocation = allocations[cat.slug];
             const hasAllocation = catAllocation && catAllocation.totalCost > 0;
-            
+
             return (
               <Card
                 key={cat.name}

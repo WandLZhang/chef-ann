@@ -37,6 +37,11 @@ ui-debug.log
 *.log
 npm-debug.log*
 
+# district data
+functions/data/authorized_emails.json
+functions/data/district_lookup.json
+functions/data/district_entitlements.json
+
 # Testing
 coverage/
 .pytest_cache/

@@ -163,8 +163,12 @@ export async function hydrateFromFirestore(userId: string): Promise<boolean> {
 
       if (data.districtProfile) {
         localStorage.setItem('districtProfile', JSON.stringify(data.districtProfile));
-        hasData = true;
-        console.log('[firestore] hydrated districtProfile to localStorage');
+        // Only skip onboarding if user explicitly completed it (clicked "Complete")
+        // Admin script pre-populates districtName/entitlement/gradeLevels but sets
+        // onboardingComplete=false so users still go through equipment & allergens
+        const profile = data.districtProfile;
+        hasData = profile.onboardingComplete === true;
+        console.log('[firestore] hydrated districtProfile to localStorage, onboarding complete:', hasData);
       }
 
       if (data.allocations) {

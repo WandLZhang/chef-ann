@@ -1,7 +1,7 @@
 /**
  * @file planner/budget/page.tsx
  * @brief Cost Analysis & Budget Headroom page
- * 
+ *
  * @details Connects to /api/stream/budget for real-time Gemini calculations.
  * Dynamically renders any JSON metrics returned by Gemini.
  */
@@ -43,7 +43,7 @@ export default function BudgetPage() {
   const [totalSpent, setTotalSpent] = useState(0);
   const [annualMeals, setAnnualMeals] = useState(3600000);
   const [milkCostPerMeal, setMilkCostPerMeal] = useState(0.25); // $/carton, procured separately from commodities
-  
+
   // Dynamic result storage - stores any JSON keys
   const [metrics, setMetrics] = useState<Record<string, string | number>>({});
   const [streamingText, setStreamingText] = useState('');
@@ -65,10 +65,10 @@ export default function BudgetPage() {
       '💰 Analyzing food costs...',
       '📈 Computing headroom...',
     ];
-    
+
     let index = 0;
     setStatusText(placeholders[0]);
-    
+
     const interval = setInterval(() => {
       index = (index + 1) % placeholders.length;
       setStatusText(placeholders[index]);
@@ -127,7 +127,7 @@ export default function BudgetPage() {
         setIsRealStatus(true);
         setCodeResults((prev) => [...prev, res.output]);
         setStatusText('📊 Parsing calculation results...');
-        
+
         // Parse the JSON output dynamically
         try {
           const jsonMatch = res.output.match(/\{[\s\S]*\}/);
@@ -162,11 +162,11 @@ export default function BudgetPage() {
   // Smart formatting for metric values
   const formatValue = (key: string, value: string | number): string => {
     if (typeof value === 'string') return value;
-    
+
     const lowerKey = key.toLowerCase();
-    
+
     // Currency formatting
-    if (lowerKey.includes('cost') || lowerKey.includes('budget') || 
+    if (lowerKey.includes('cost') || lowerKey.includes('budget') ||
         lowerKey.includes('rate') || lowerKey.includes('headroom') ||
         lowerKey.includes('revenue') || lowerKey.includes('plate')) {
       if (value > 1000) {
@@ -174,12 +174,12 @@ export default function BudgetPage() {
       }
       return `$${value.toFixed(4)}`;
     }
-    
+
     // Percentage
     if (lowerKey.includes('%') || lowerKey.includes('percent')) {
       return typeof value === 'number' ? `${value.toFixed(2)}%` : value;
     }
-    
+
     // Default number formatting
     return typeof value === 'number' ? value.toLocaleString() : String(value);
   };
@@ -640,7 +640,7 @@ export default function BudgetPage() {
                 {statusText || 'Analyzing...'}
               </Typography>
             </Box>
-            
+
             {/* Animated skeleton grid */}
             <Box
               sx={{
@@ -717,9 +717,9 @@ export default function BudgetPage() {
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.5 }}>
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
+                    <Typography
+                      variant="caption"
+                      sx={{
                         color: isHeroMetric(key) ? 'rgba(76, 175, 80, 0.8)' : 'text.secondary',
                       }}
                     >
@@ -759,7 +759,7 @@ export default function BudgetPage() {
                         Object.entries(metrics)
                           .find(([k]) => k.toLowerCase().includes('%'))?.[1]
                           ?.toString()
-                          .replace('%', '') || '0'
+                          .replaceAll('%', '') || '0'
                       ),
                       100
                     )}
@@ -809,7 +809,7 @@ export default function BudgetPage() {
                     {code}
                   </Box>
                 ))}
-                
+
                 {codeResults.length > 0 && (
                   <>
                     <Typography variant="subtitle2" sx={{ mb: 1, mt: 2, color: 'text.secondary' }}>

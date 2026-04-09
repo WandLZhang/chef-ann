@@ -25,7 +25,6 @@ import { gsap } from 'gsap';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import CalculationTooltip from '@/components/CalculationTooltip';
 import UserHeader from '@/components/UserHeader';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,6 +89,15 @@ interface DistrictProfile {
   commodityValuePerMeal: number | '';
   equipment: string[];
   allergens: string[];
+  // System-of-record fields from WBSCM (frozen, set by admin script)
+  entitlementAmount?: number;
+  dodFreshAmount?: number;
+  totalOrdered?: number;
+  ceId?: string;
+  county?: string;
+  soldToParty?: string;
+  // Set to true when user completes onboarding (controls skip-to-planner on next login)
+  onboardingComplete?: boolean;
 }
 
 // Default demographics (can be customized)
@@ -132,7 +140,7 @@ export default function OnboardingPage() {
       router.push('/');
     }
   }, [loading, isAuthenticated, router]);
-  
+
   const [profile, setProfile] = useState<DistrictProfile>({
     districtName: '',
     gradeLevels: [],
@@ -151,31 +159,46 @@ export default function OnboardingPage() {
     allergens: [],
   });
 
+  // Load pre-populated profile from Firestore/localStorage on mount
+  // (admin script pre-fills districtName, enrollment, entitlement from xlsx data)
+  useEffect(() => {
+    const saved = localStorage.getItem('districtProfile');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        console.log('[onboarding] Loaded pre-populated profile:', parsed.districtName);
+        setProfile(prev => ({ ...prev, ...parsed }));
+      } catch (err) {
+        console.error('[onboarding] Error parsing saved profile:', err);
+      }
+    }
+  }, []);
+
   // Calculate ADP and Annual Meals when inputs change
   useEffect(() => {
     const { enrollmentByGrade, servingDays, participationRate } = profile;
-    
+
     // Guard against blank values — treat '' as 0 for calculation purposes
     const safeParticipation = typeof participationRate === 'number' ? participationRate : 0;
     const safeServingDays = typeof servingDays === 'number' ? servingDays : 0;
-    
+
     // Simple participation calculation: ADP = enrollment × participationRate
     const participationDecimal = safeParticipation / 100;
-    
+
     // Calculate ADP for each grade
     const newAdpByGrade: Record<string, number> = {};
     let totalEnroll = 0;
     let totalAdp = 0;
-    
+
     Object.entries(enrollmentByGrade).forEach(([grade, enrollment]) => {
       const adp = Math.round(enrollment * participationDecimal);
       newAdpByGrade[grade] = adp;
       totalEnroll += enrollment;
       totalAdp += adp;
     });
-    
+
     const annualMeals = totalAdp * safeServingDays;
-    
+
     // Only update if values actually changed to avoid infinite loop
     if (
       JSON.stringify(newAdpByGrade) !== JSON.stringify(profile.adpByGrade) ||
@@ -192,8 +215,8 @@ export default function OnboardingPage() {
       }));
     }
   }, [
-    profile.enrollmentByGrade, 
-    profile.servingDays, 
+    profile.enrollmentByGrade,
+    profile.servingDays,
     profile.participationRate,
     profile.adpByGrade,
     profile.totalEnrollment,
@@ -222,7 +245,7 @@ export default function OnboardingPage() {
     // Validate step 1 (Enrollment & Meals) — warn if critical fields are blank
     if (activeStep === 1) {
       const missingFields: string[] = [];
-      
+
       if (profile.gradeLevels.length === 0) {
         missingFields.push('grade levels');
       } else {
@@ -238,7 +261,7 @@ export default function OnboardingPage() {
       }
       if (profile.servingDays === '') missingFields.push('serving days per year');
       if (profile.participationRate === '') missingFields.push('participation rate');
-      
+
       if (missingFields.length > 0) {
         setShowValidation(true);
         // Gentle shake animation on the card
@@ -252,12 +275,13 @@ export default function OnboardingPage() {
       }
       setShowValidation(false);
     }
-    
+
     if (activeStep === steps.length - 1) {
-      // Save to both localStorage and Firestore
-      localStorage.setItem('districtProfile', JSON.stringify(profile));
+      // Mark onboarding as complete so next login skips to planner
+      const finalProfile = { ...profile, onboardingComplete: true };
+      localStorage.setItem('districtProfile', JSON.stringify(finalProfile));
       if (user) {
-        saveDistrictProfile(user.uid, profile as unknown as Record<string, unknown>, user.email || undefined).catch((err) =>
+        saveDistrictProfile(user.uid, finalProfile as unknown as Record<string, unknown>, user.email || undefined).catch((err) =>
           console.error('[onboarding] Failed to save profile to Firestore:', err)
         );
       }
@@ -357,7 +381,8 @@ export default function OnboardingPage() {
               fullWidth
               label="District Name"
               value={profile.districtName}
-              onChange={(e) => setProfile({ ...profile, districtName: e.target.value })}
+              disabled={!!profile.districtName}
+              helperText={profile.districtName ? 'Set from your account — cannot be changed' : ''}
               sx={{ mb: 3 }}
               InputLabelProps={{ shrink: true }}
             />
@@ -365,81 +390,45 @@ export default function OnboardingPage() {
               fullWidth
               label="Number of Serving Sites"
               value={profile.sites}
-              onChange={(e) => setProfile({ ...profile, sites: e.target.value })}
+              disabled={!!profile.sites}
+              helperText={profile.sites ? 'Set from your account — cannot be changed' : ''}
               sx={{ mb: 3 }}
               InputLabelProps={{ shrink: true }}
             />
-            <TextField
-              fullWidth
-              label="Current Food Cost Percentage"
-              value={profile.foodCostPercentage}
-              onChange={(e) => setProfile({ ...profile, foodCostPercentage: e.target.value })}
-              helperText="Industry range: 40-55% of reimbursement"
-              sx={{ mb: 3 }}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                endAdornment: <Typography sx={{ color: 'text.secondary' }}>%</Typography>,
-              }}
-            />
-            <TextField
-              fullWidth
-              label="USDA Commodity Value per Meal"
-              type="number"
-              value={profile.commodityValuePerMeal}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  setProfile({ ...profile, commodityValuePerMeal: '' });
-                } else {
-                  const parsed = parseFloat(val);
-                  setProfile({ ...profile, commodityValuePerMeal: isNaN(parsed) ? '' : parsed });
-                }
-              }}
-              helperText="USDA FNS rate per meal (default $0.45, effective July 2025). Your entitlement = Annual Meals × this rate."
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                startAdornment: <Typography sx={{ color: 'text.secondary', mr: 0.5 }}>$</Typography>,
-                inputProps: { step: 0.01, min: 0 },
-              }}
-            />
-            {/* Entitlement Preview — shows computed value when annual meals are available */}
-            {profile.totalAnnualMeals > 0 && typeof profile.commodityValuePerMeal === 'number' && (
+            {/* Show real WBSCM entitlement if available (frozen from admin data) */}
+            {profile.entitlementAmount ? (
               <Box
                 sx={{
-                  mt: 2,
+                  mb: 3,
                   p: 2,
-                  bgcolor: 'rgba(76, 175, 80, 0.06)',
+                  bgcolor: 'rgba(33, 150, 243, 0.06)',
                   borderRadius: 2,
-                  border: '1px solid rgba(76, 175, 80, 0.2)',
+                  border: '1px solid rgba(33, 150, 243, 0.2)',
                 }}
               >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Typography variant="caption" sx={{ color: 'rgba(76, 175, 80, 0.8)', fontWeight: 600 }}>
-                      💰 ESTIMATED ENTITLEMENT:
-                    </Typography>
-                    <CalculationTooltip
-                      iconSize={14}
-                      provenance={{
-                        formula: 'Annual Meals × Commodity Value per Meal',
-                        inputs: [
-                          { label: 'Annual Meals', value: profile.totalAnnualMeals.toLocaleString(), source: 'ADP × Serving Days (Step 2)' },
-                          { label: 'Value per Meal', value: `$${profile.commodityValuePerMeal.toFixed(2)}`, source: 'USDA FNS Federal Register, eff. July 2025' },
-                        ],
-                        steps: `${profile.totalAnnualMeals.toLocaleString()} × $${profile.commodityValuePerMeal.toFixed(2)} = $${Math.round(profile.totalAnnualMeals * profile.commodityValuePerMeal).toLocaleString()}`,
-                        source: 'USDA Foods in Schools, FAL SY26-27',
-                      }}
-                    />
-                  </Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: 'rgba(76, 175, 80, 0.9)', fontFamily: '"Google Sans", sans-serif' }}>
-                    ${Math.round(profile.totalAnnualMeals * profile.commodityValuePerMeal).toLocaleString()}
+                <Typography variant="caption" sx={{ color: 'rgba(33, 150, 243, 0.8)', fontWeight: 600 }}>
+                  📋 YOUR WBSCM ENTITLEMENT (PY27)
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, mt: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>Total Entitlement:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                    ${profile.entitlementAmount.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>DoD Fresh:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                    ${(profile.dodFreshAmount || 0).toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>Already Ordered:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                    ${(profile.totalOrdered || 0).toLocaleString()}
                   </Typography>
                 </Box>
-                <Typography variant="caption" sx={{ color: 'rgba(97, 97, 97, 0.6)', mt: 0.5, display: 'block' }}>
-                  {profile.totalAnnualMeals.toLocaleString()} meals × ${profile.commodityValuePerMeal.toFixed(2)}/meal
+                <Typography variant="caption" sx={{ color: 'rgba(97, 97, 97, 0.5)', mt: 1, display: 'block' }}>
+                  From WBSCM orders data — cannot be changed
                 </Typography>
               </Box>
-            )}
+            ) : null}
+            {/* Food cost % and commodity value per meal removed — real WBSCM entitlement is pre-populated */}
           </Box>
         );
 
@@ -452,7 +441,7 @@ export default function OnboardingPage() {
             >
               Enrollment & Meal Planning
             </Typography>
-            
+
             {/* Grade Level Selection */}
             <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
               Select grade levels served:
@@ -494,6 +483,28 @@ export default function OnboardingPage() {
                 <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
                   Enter enrollment by grade level:
                 </Typography>
+                {/* Warn if entered sum exceeds known enrollment by >10% */}
+                {(() => {
+                  const enteredSum = Object.values(profile.enrollmentByGrade).reduce((s, v) => s + (v || 0), 0);
+                  const known = (profile as any).knownEnrollment || 0;
+                  const overBy = known > 0 && enteredSum > known * 1.1;
+                  return (
+                    <>
+                      {known > 0 && (
+                        <Typography variant="caption" sx={{ color: 'rgba(97,97,97,0.5)', mb: 1, display: 'block' }}>
+                          Known district enrollment: {known.toLocaleString()} students
+                        </Typography>
+                      )}
+                      {overBy && (
+                        <Box sx={{ mb: 1, p: 1, bgcolor: 'rgba(255, 152, 0, 0.08)', borderRadius: 1, border: '1px solid rgba(255, 152, 0, 0.2)' }}>
+                          <Typography variant="caption" sx={{ color: 'rgba(230, 81, 0, 0.9)' }}>
+                            ⚠️ Your total ({enteredSum.toLocaleString()}) exceeds known enrollment ({known.toLocaleString()}). Please verify.
+                          </Typography>
+                        </Box>
+                      )}
+                    </>
+                  );
+                })()}
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 3 }}>
                   {profile.gradeLevels.map((gradeId) => {
                     const grade = gradeOptions.find((g) => g.id === gradeId);
@@ -641,10 +652,10 @@ export default function OnboardingPage() {
 
                 {/* Calculation Summary */}
                 {profile.totalEnrollment > 0 && (
-                  <Box 
-                    sx={{ 
-                      p: 2, 
-                      bgcolor: 'rgba(33, 150, 243, 0.06)', 
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: 'rgba(33, 150, 243, 0.06)',
                       borderRadius: 2,
                       border: '1px solid rgba(33, 150, 243, 0.2)',
                     }}
@@ -652,7 +663,7 @@ export default function OnboardingPage() {
                     <Typography variant="caption" sx={{ color: 'rgba(33, 150, 243, 0.8)', fontWeight: 600, display: 'block', mb: 1 }}>
                       📊 ANNUAL MEAL PROJECTION
                     </Typography>
-                    
+
                     <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5, fontSize: '0.75rem' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -674,14 +685,14 @@ export default function OnboardingPage() {
                       <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
                         {profile.totalEnrollment.toLocaleString()} students
                       </Typography>
-                      
+
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         Participation Rate:
                       </Typography>
                       <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
                         {profile.participationRate}%
                       </Typography>
-                      
+
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           Average Daily Participation:
@@ -702,7 +713,7 @@ export default function OnboardingPage() {
                       <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
                         {profile.totalAdp.toLocaleString()} students
                       </Typography>
-                      
+
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         Serving Days:
                       </Typography>
@@ -710,7 +721,7 @@ export default function OnboardingPage() {
                         {profile.servingDays} days
                       </Typography>
                     </Box>
-                    
+
                     <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed rgba(33, 150, 243, 0.3)' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -736,44 +747,7 @@ export default function OnboardingPage() {
                       </Box>
                     </Box>
 
-                    {/* Entitlement Calculation */}
-                    {profile.totalAnnualMeals > 0 && typeof profile.commodityValuePerMeal === 'number' && profile.commodityValuePerMeal > 0 && (
-                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed rgba(76, 175, 80, 0.3)' }}>
-                        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                            Commodity Value/Meal:
-                          </Typography>
-                          <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'right' }}>
-                            ${profile.commodityValuePerMeal.toFixed(2)}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'rgba(76, 175, 80, 0.9)', fontWeight: 600 }}>
-                              💰 ESTIMATED ENTITLEMENT:
-                            </Typography>
-                            <CalculationTooltip
-                              iconSize={14}
-                              provenance={{
-                                formula: 'Annual Meals × Commodity Value per Meal',
-                                inputs: [
-                                  { label: 'Annual Meals', value: profile.totalAnnualMeals.toLocaleString(), source: 'ADP × Serving Days' },
-                                  { label: 'Value per Meal', value: `$${profile.commodityValuePerMeal.toFixed(2)}`, source: 'USDA FNS Federal Register, eff. July 2025 (configurable in Step 1)' },
-                                ],
-                                steps: `${profile.totalAnnualMeals.toLocaleString()} × $${profile.commodityValuePerMeal.toFixed(2)} = $${Math.round(profile.totalAnnualMeals * profile.commodityValuePerMeal).toLocaleString()}`,
-                                source: 'USDA Foods in Schools, FAL SY26-27',
-                              }}
-                            />
-                          </Box>
-                          <Typography variant="body1" sx={{ fontWeight: 700, color: 'rgba(76, 175, 80, 0.9)' }}>
-                            ${Math.round(profile.totalAnnualMeals * profile.commodityValuePerMeal).toLocaleString()}
-                          </Typography>
-                        </Box>
-                        <Typography variant="caption" sx={{ color: 'rgba(97, 97, 97, 0.5)', display: 'block', mt: 0.5 }}>
-                          {profile.totalAnnualMeals.toLocaleString()} meals × ${profile.commodityValuePerMeal.toFixed(2)}/meal
-                        </Typography>
-                      </Box>
-                    )}
+                    {/* Entitlement calculation removed — real WBSCM entitlement shown in Step 1 */}
                   </Box>
                 )}
               </>
@@ -794,7 +768,7 @@ export default function OnboardingPage() {
             <Typography variant="body2" sx={{ mb: 3, color: 'rgba(97, 97, 97, 0.8)' }}>
               We&apos;ll filter food options based on your capabilities.
             </Typography>
-            
+
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               {equipmentOptions.map((equip) => (
                 <Chip
@@ -841,8 +815,8 @@ export default function OnboardingPage() {
                 }}
               />
               <Typography variant="body2" sx={{ mt: 1, color: 'rgba(97, 97, 97, 0.7)' }}>
-                {scratchScore}% — {scratchScore >= 60 
-                  ? "Ready for raw proteins!" 
+                {scratchScore}% — {scratchScore >= 60
+                  ? "Ready for raw proteins!"
                   : "More equipment = more scratch options"}
               </Typography>
             </Box>
@@ -861,7 +835,7 @@ export default function OnboardingPage() {
             <Typography variant="body2" sx={{ mb: 3, color: 'rgba(97, 97, 97, 0.8)' }}>
               Select any Big 9 allergens to avoid district-wide.
             </Typography>
-            
+
             <FormGroup>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1 }}>
                 {allergenOptions.map((allergen) => (
@@ -1005,22 +979,7 @@ export default function OnboardingPage() {
 
           {/* Navigation */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, alignItems: 'center' }}>
-            {/* Example button */}
-            <Button
-              startIcon={<AutoFixHighIcon />}
-              onClick={fillExampleData}
-              sx={{
-                color: 'rgba(76, 175, 80, 0.5)',
-                fontSize: '0.8rem',
-                '&:hover': {
-                  bgcolor: 'rgba(76, 175, 80, 0.05)',
-                  color: 'rgba(76, 175, 80, 0.8)',
-                },
-              }}
-            >
-              Use Example
-            </Button>
-
+            <Box sx={{ flex: 1 }} />
             <Button
               variant="contained"
               onClick={handleNext}
