@@ -257,7 +257,7 @@ export default function OnboardingPage() {
       // Save to both localStorage and Firestore
       localStorage.setItem('districtProfile', JSON.stringify(profile));
       if (user) {
-        saveDistrictProfile(user.uid, profile as unknown as Record<string, unknown>).catch((err) =>
+        saveDistrictProfile(user.uid, profile as unknown as Record<string, unknown>, user.email || undefined).catch((err) =>
           console.error('[onboarding] Failed to save profile to Firestore:', err)
         );
       }

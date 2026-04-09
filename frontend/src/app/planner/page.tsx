@@ -558,8 +558,8 @@ export default function PlannerPage() {
             {profile.gradeLevels.includes('high') && (profile.gradeLevels.includes('elementary') || profile.gradeLevels.includes('middle')) && (
               <Box sx={{ p: 2, bgcolor: 'rgba(255, 152, 0, 0.06)', borderRadius: 2, border: '1px solid rgba(255, 152, 0, 0.15)' }}>
                 <Typography variant="caption" sx={{ color: 'rgba(230, 126, 0, 0.9)' }}>
-                  ⚠️ <strong>Key difference:</strong> High school requires <strong>2× the protein and grain</strong> per meal vs. elementary/middle
-                  (2.0 oz eq vs 1.0 oz eq daily). High school also needs <strong>double the fruit and vegetables</strong>.
+                  ⚠️ <strong>Key difference:</strong> High school requires offering <strong>2× the protein and grain</strong> per meal vs. elementary/middle
+                  (2.0 oz eq vs 1.0 oz eq daily). High school also requires offering <strong>double the fruit and vegetables</strong> compared to lower grade levels.
                   Plan commodity quantities accordingly.
                 </Typography>
               </Box>

@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "wz-chef-ann"
+  },
+  "targets": {},
+  "etags": {
+    "wz-chef-ann": {
+      "extensionInstances": {
+        "firestore-bigquery-export": "a636ca883a8a0e5aec8996881d2fcc7c3264763463d01bdc2f5a0f80267a5557"
+      }
+    }
   }
 }

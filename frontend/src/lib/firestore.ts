@@ -24,19 +24,23 @@ import {
  * @param userId The Firebase Auth UID of the current user.
  * @param profile The district profile object from onboarding.
  */
-export async function saveDistrictProfile(userId: string, profile: Record<string, unknown>): Promise<void> {
-  console.log('[firestore] saveDistrictProfile called for user:', userId);
+export async function saveDistrictProfile(userId: string, profile: Record<string, unknown>, userEmail?: string): Promise<void> {
+  console.log('[firestore] saveDistrictProfile called for user:', userId, 'email:', userEmail);
   console.log('[firestore] profile payload:', JSON.stringify(profile));
 
   // Write to localStorage for fast local reads
   localStorage.setItem('districtProfile', JSON.stringify(profile));
 
-  // Write to Firestore
+  // Write to Firestore (include email for BigQuery dashboard readability)
   const userRef = doc(db, 'users', userId);
-  await setDoc(userRef, {
+  const writeData: Record<string, unknown> = {
     districtProfile: profile,
     lastUpdated: serverTimestamp(),
-  }, { merge: true });
+  };
+  if (userEmail) {
+    writeData.userEmail = userEmail;
+  }
+  await setDoc(userRef, writeData, { merge: true });
 
   console.log('[firestore] districtProfile saved successfully');
 }

@@ -24,6 +24,7 @@ const APPROVED_USERS = [
   'williszhang@google.com',
   'ngoren@google.com',
   'lori.nelson@chefannfoundation.org',
+  'test@williszhang.altostrat.com',
 ];
 
 interface AuthContextType {

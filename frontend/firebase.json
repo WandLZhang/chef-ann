@@ -2,6 +2,9 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "extensions": {
+    "firestore-bigquery-export": "firebase/firestore-bigquery-export@0.3.0"
+  },
   "hosting": {
     "site": "chef-ann-commodity-planner",
     "public": "out",
