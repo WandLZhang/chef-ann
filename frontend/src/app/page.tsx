@@ -1,13 +1,9 @@
 /**
  * @file page.tsx
- * @brief Splash screen with login form for authenticated access.
+ * @brief Splash screen with open sign-in / sign-up form.
  *
- * @details Shows a glassmorphism card with email/password login. On successful
- * auth, routes to /planner if user has existing data, or /onboarding for new users.
- * Validates against an approved user list before attempting Firebase sign-in.
- *
- * @author Willis Zhang
- * @date 2026-03-10
+ * Anyone can self-register an account. On success routes to /planner
+ * (existing data) or /onboarding (new users).
  */
 
 'use client';
@@ -23,23 +19,28 @@ import {
   TextField,
   Alert,
   CircularProgress,
+  Link,
 } from '@mui/material';
 import { gsap } from 'gsap';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import SpaOutlinedIcon from '@mui/icons-material/SpaOutlined';
 import LoginIcon from '@mui/icons-material/Login';
+import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import { useAuth } from '@/contexts/AuthContext';
+
+type AuthMode = 'signin' | 'signup';
 
 export default function SplashPage() {
   const router = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
+  const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const { user, loading, isAuthenticated, hasExistingData, signIn, authError } = useAuth();
+  const { user, loading, isAuthenticated, hasExistingData, signIn, signUp, authError } = useAuth();
 
   // Simple fade-in on mount
   useEffect(() => {
@@ -61,23 +62,37 @@ export default function SplashPage() {
   // If already authenticated, show the "Enter" button instead of login
   // (user may have refreshed the page while still logged in)
 
-  const handleLogin = async () => {
+  const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
       setLocalError('Please enter both email and password.');
       return;
     }
+    if (mode === 'signup' && password.length < 6) {
+      setLocalError('Password must be at least 6 characters.');
+      return;
+    }
 
     setLocalError(null);
-    setIsSigningIn(true);
+    setIsSubmitting(true);
 
     try {
-      await signIn(email.trim(), password);
-      console.log('[splash] Login successful, hasExistingData:', hasExistingData);
+      if (mode === 'signup') {
+        await signUp(email.trim(), password);
+        console.log('[splash] Sign-up successful');
+      } else {
+        await signIn(email.trim(), password);
+        console.log('[splash] Sign-in successful, hasExistingData:', hasExistingData);
+      }
       // The auth state listener will set isAuthenticated
     } catch {
       // Error is already set via authError in the context
-      setIsSigningIn(false);
+      setIsSubmitting(false);
     }
+  };
+
+  const toggleMode = () => {
+    setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
+    setLocalError(null);
   };
 
   const handleEnter = () => {
@@ -101,7 +116,7 @@ export default function SplashPage() {
       if (isAuthenticated) {
         handleEnter();
       } else {
-        handleLogin();
+        handleSubmit();
       }
     }
   };
@@ -263,7 +278,7 @@ export default function SplashPage() {
             </Box>
           )}
 
-          {/* If not authenticated, show login form */}
+          {/* If not authenticated, show sign-in / sign-up form */}
           {!loading && !isAuthenticated && (
             <Box onKeyDown={handleKeyPress}>
               {displayError && (
@@ -289,7 +304,7 @@ export default function SplashPage() {
                 InputLabelProps={{ shrink: true }}
                 placeholder="you@example.com"
                 autoComplete="email"
-                disabled={isSigningIn}
+                disabled={isSubmitting}
               />
               <TextField
                 fullWidth
@@ -297,18 +312,24 @@ export default function SplashPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                sx={{ mb: 3 }}
+                sx={{ mb: mode === 'signup' ? 1 : 3 }}
                 InputLabelProps={{ shrink: true }}
-                autoComplete="current-password"
-                disabled={isSigningIn}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                disabled={isSubmitting}
+                helperText={mode === 'signup' ? 'At least 6 characters' : undefined}
               />
+              {mode === 'signup' && <Box sx={{ mb: 2 }} />}
 
               <Button
                 variant="contained"
                 size="large"
-                onClick={handleLogin}
-                disabled={isSigningIn}
-                startIcon={isSigningIn ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                startIcon={
+                  isSubmitting
+                    ? <CircularProgress size={20} color="inherit" />
+                    : (mode === 'signup' ? <PersonAddOutlinedIcon /> : <LoginIcon />)
+                }
                 sx={{
                   px: 4,
                   py: 1.5,
@@ -331,8 +352,37 @@ export default function SplashPage() {
                   },
                 }}
               >
-                {isSigningIn ? 'Signing In...' : 'Sign In'}
+                {isSubmitting
+                  ? (mode === 'signup' ? 'Creating Account...' : 'Signing In...')
+                  : (mode === 'signup' ? 'Create Account' : 'Sign In')}
               </Button>
+
+              <Box sx={{ mt: 2.5 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'rgba(97, 97, 97, 0.85)',
+                    fontFamily: '"Google Sans", "Product Sans", sans-serif',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  {mode === 'signup' ? 'Already have an account?' : 'First time here?'}{' '}
+                  <Link
+                    component="button"
+                    type="button"
+                    onClick={toggleMode}
+                    disabled={isSubmitting}
+                    sx={{
+                      color: 'rgba(76, 175, 80, 0.95)',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      '&:hover': { textDecoration: 'underline' },
+                    }}
+                  >
+                    {mode === 'signup' ? 'Sign in' : 'Create an account'}
+                  </Link>
+                </Typography>
+              </Box>
             </Box>
           )}
         </Card>

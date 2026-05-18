@@ -381,8 +381,8 @@ export default function OnboardingPage() {
               fullWidth
               label="District Name"
               value={profile.districtName}
-              disabled={!!profile.districtName}
-              helperText={profile.districtName ? 'Set from your account — cannot be changed' : ''}
+              onChange={(e) => setProfile({ ...profile, districtName: e.target.value })}
+              placeholder="e.g. Los Angeles Unified School District"
               sx={{ mb: 3 }}
               InputLabelProps={{ shrink: true }}
             />
@@ -390,8 +390,8 @@ export default function OnboardingPage() {
               fullWidth
               label="Number of Serving Sites"
               value={profile.sites}
-              disabled={!!profile.sites}
-              helperText={profile.sites ? 'Set from your account — cannot be changed' : ''}
+              onChange={(e) => setProfile({ ...profile, sites: e.target.value })}
+              placeholder="e.g. 45 sites (5 production, 40 satellite)"
               sx={{ mb: 3 }}
               InputLabelProps={{ shrink: true }}
             />
